@@ -14,6 +14,7 @@ return [
     'demo_mode_when_no_key' => true,
     'db_host' => '127.0.0.1',
     'db_port' => '3306',
+    'db_socket' => '',
     'db_name' => 'max_rental_ai',
     'db_user' => 'max_rental_ai',
     'db_password' => '',

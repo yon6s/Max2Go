@@ -23,7 +23,12 @@ function db(): ?PDO
     $host = (string)app_config('db_host', '127.0.0.1');
     $port = (string)app_config('db_port', '3306');
     $charset = (string)app_config('db_charset', 'utf8mb4');
-    $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset={$charset}";
+    $socket = trim((string)app_config('db_socket', ''));
+    if ($socket !== '') {
+        $dsn = "mysql:unix_socket={$socket};dbname={$dbName};charset={$charset}";
+    } else {
+        $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset={$charset}";
+    }
 
     try {
         $pdo = new PDO($dsn, $dbUser, (string)app_config('db_password', ''), [
