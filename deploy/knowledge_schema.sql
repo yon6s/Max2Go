@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS knowledge_items (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    project_key VARCHAR(60) NOT NULL DEFAULT 'general',
+    type VARCHAR(60) NOT NULL DEFAULT '项目资料',
+    title VARCHAR(180) NOT NULL,
+    content MEDIUMTEXT NOT NULL,
+    stages VARCHAR(255) NOT NULL DEFAULT 'all',
+    priority TINYINT UNSIGNED NOT NULL DEFAULT 2,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_project_enabled (project_key, enabled),
+    KEY idx_priority (priority)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS projects (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    project_key VARCHAR(60) NOT NULL,
+    name VARCHAR(180) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 100,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_project_key (project_key),
+    KEY idx_enabled_sort (enabled, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
