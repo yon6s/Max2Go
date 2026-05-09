@@ -309,6 +309,10 @@ h1 {
   gap: 16px;
 }
 
+.wide {
+  grid-column: 1 / -1;
+}
+
 .field-block {
   padding: 14px;
   border: 1px solid var(--line);
@@ -517,6 +521,29 @@ fieldset.field-block {
 
 .output-table {
   margin: 8px 0 18px;
+}
+
+.contract-builder {
+  display: grid;
+  gap: 14px;
+}
+
+.contract-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.contract-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.contract-actions a {
+  color: var(--brand-dark);
+  font-weight: 700;
 }
 
 .demo-note {
@@ -742,6 +769,10 @@ fieldset.field-block {
   }
 
   .project-form {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-grid {
     grid-template-columns: 1fr;
   }
 }

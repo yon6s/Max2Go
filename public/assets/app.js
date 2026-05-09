@@ -65,9 +65,9 @@ const stages = [
   {
     id: 'contract',
     title: '7. 合同草案助手',
-    desc: '录入关键商务条件，生成合同字段清单和风险检查，不替代法务审核。',
+    desc: '录入承租方、房源、租期和商务条件，生成合同字段清单，也可以基于标准模板生成可下载合同。',
     fields: [
-      { type: 'textarea', key: 'contractTerms', label: '关键条款', placeholder: '例：承租方、房号、面积、单价、物业费、租期、免租期、付款周期、押金。' },
+      { type: 'contractBuilder' },
       { type: 'checkbox', key: 'riskChecks', label: '重点检查', options: ['面积前后一致', '价格口径一致', '免租期写清楚', '付款日期明确', '特殊条款需审批', '开票信息完整'] },
     ],
   },
@@ -137,7 +137,46 @@ const demoScenario = {
     bottomLine: '价格不能直接打到底。可用较快签约、两年期以上、付款周期稳定来换取适度优惠；超过标准免租期需上报审批。',
   },
   contract: {
-    contractTerms: '承租方：星澜智能科技有限公司；房源：MAX科技园某楼某层东南侧分割单元；面积：约420㎡，最终以合同附件图纸和实测/约定面积为准；租期：24个月；计划起租：2026年6月；付款周期：押二付三；免租期：按审批结果填写；物业费、开票信息和特殊约定待补充。',
+    tenantName: '星澜智能科技有限公司',
+    creditCode: '91310000MA1MAX2GO1',
+    registeredAddress: '上海市宝山区罗店镇示例路88号',
+    legalRepresentative: '陈星澜',
+    tenantPhone: '13800000000',
+    contactPerson: '陈星澜',
+    signYear: '2026',
+    signMonth: '',
+    signDay: '',
+    propertyAddress: '上海市宝山区罗店路388弄33号B座706室',
+    roomCode: 'B座706室',
+    area: '240',
+    leaseMonths: '36',
+    unitPrice: '1.6',
+    propertyUnitFee: '12',
+    escalationRate: '5',
+    fitoutPattern: '2,1,0',
+    firstRentMonths: '3',
+    depositMonths: '3',
+    leaseStart: '2026-06-01',
+    leaseEnd: '2029-05-31',
+    fitoutStart1: '2026-06-01',
+    fitoutEnd1: '2026-07-31',
+    fitoutStart2: '2027-06-01',
+    fitoutEnd2: '2027-06-30',
+    deliveryDate: '2026-05-31',
+    rentPeriod1Start: '2026-06-01',
+    rentPeriod1End: '2028-05-31',
+    monthlyRent1: '11680',
+    rentPeriod2Start: '2028-06-01',
+    rentPeriod2End: '2029-05-31',
+    monthlyRent2: '12264',
+    propertyFee: '2880',
+    firstRent: '35040',
+    deposit: '35040',
+    firstPayDate: '2026-05-09',
+    depositPayDate: '2026-05-22',
+    noticeAddress: '上海市宝山区罗店路388弄33号B座706室',
+    taxPerSqm: '1250',
+    floorPlanNote: '平面图',
     riskChecks: ['面积前后一致', '价格口径一致', '免租期写清楚', '付款日期明确', '特殊条款需审批', '开票信息完整'],
   },
   dashboard: {
@@ -181,6 +220,100 @@ function renderNav() {
 }
 
 function fieldHtml(field) {
+  if (field.type === 'contractBuilder') {
+    const contractFields = [
+      ['tenantName', '承租方', 'text', '例：星澜智能科技有限公司'],
+      ['creditCode', '统一社会信用代码', 'text', '例：9131...'],
+      ['registeredAddress', '注册地址', 'text', '例：上海市宝山区...'],
+      ['legalRepresentative', '法定代表人', 'text', '例：陈星澜'],
+      ['tenantPhone', '联系电话', 'text', '例：13800000000'],
+      ['contactPerson', '联系人', 'text', '默认同法定代表人'],
+      ['signYear', '签约年份', 'number', '例：2026'],
+      ['signMonth', '签约月份', 'number', '留空，正式签约时填写'],
+      ['signDay', '签约日期', 'number', '留空，正式签约时填写'],
+      ['propertyAddress', '标的房屋地址', 'text', '例：上海市宝山区罗店路388弄33号B座706室'],
+      ['roomCode', '房号', 'text', '例：B座706室'],
+      ['area', '计租面积/㎡', 'number', '例：240'],
+      ['unitPrice', '租金单价/元㎡天', 'number', '例：1.6'],
+      ['propertyUnitFee', '物业费单价/元㎡月', 'number', '例：12'],
+      ['leaseMonths', '租期', 'select', ''],
+      ['leaseStart', '租期开始', 'date', ''],
+      ['leaseEnd', '租期结束', 'date', ''],
+      ['deliveryDate', '交付日期', 'date', ''],
+      ['fitoutPattern', '装修期/月', 'select', ''],
+      ['fitoutStart1', '装修期1开始', 'date', ''],
+      ['fitoutEnd1', '装修期1结束', 'date', ''],
+      ['fitoutStart2', '装修期2开始', 'date', ''],
+      ['fitoutEnd2', '装修期2结束', 'date', ''],
+      ['escalationRate', '末年递增/%', 'number', '例：5'],
+      ['propertyFee', '物业费/月', 'number', '例：2880'],
+      ['firstRentMonths', '首期租金/月数', 'select', ''],
+      ['firstRent', '首期租金/元', 'number', '例：35040'],
+      ['depositMonths', '押金/月数', 'select', ''],
+      ['deposit', '保证金/元', 'number', '例：35040'],
+      ['firstPayDate', '首期应缴日期', 'date', ''],
+      ['depositPayDate', '保证金应缴日期', 'date', ''],
+      ['noticeAddress', '承租方通知地址', 'text', '默认同房屋地址'],
+      ['taxPerSqm', '纳税承诺/元每㎡', 'number', '例：1250'],
+    ];
+    const selectOptions = {
+      leaseMonths: [
+        ['24', '2年'],
+        ['36', '3年'],
+        ['60', '5年'],
+      ],
+      fitoutPattern: [
+        ['0,0,0', '无装修期'],
+        ['1,0,0', '1,0,0'],
+        ['2,1,0', '2,1,0'],
+        ['2,2,1', '2,2,1'],
+        ['3,2,1', '3,2,1'],
+      ],
+      firstRentMonths: [
+        ['1', '1个月'],
+        ['2', '2个月'],
+        ['3', '3个月'],
+        ['4', '4个月'],
+      ],
+      depositMonths: [
+        ['1', '1个月'],
+        ['2', '2个月'],
+        ['3', '3个月'],
+        ['4', '4个月'],
+      ],
+    };
+    return `
+      <div class="contract-builder wide">
+        <div class="contract-grid">
+          ${contractFields.map(([key, label, type, placeholder]) => {
+            const control = type === 'select'
+              ? `<select data-key="${key}" data-type="select">${selectOptions[key].map(([value, text]) => `<option value="${value}">${text}</option>`).join('')}</select>`
+              : `<input data-key="${key}" data-type="${type}" type="${type}" step="any" placeholder="${placeholder}">`;
+            return `
+              <label class="field-block">
+                <span>${label}</span>
+                ${control}
+              </label>
+            `;
+          }).join('')}
+        </div>
+        <input data-key="rentPeriod1Start" data-type="text" type="hidden">
+        <input data-key="rentPeriod1End" data-type="text" type="hidden">
+        <input data-key="monthlyRent1" data-type="text" type="hidden">
+        <input data-key="rentPeriod2Start" data-type="text" type="hidden">
+        <input data-key="rentPeriod2End" data-type="text" type="hidden">
+        <input data-key="monthlyRent2" data-type="text" type="hidden">
+        <div class="contract-actions">
+          <button id="contractPreviewBtn" class="secondary-btn" type="button">预览关键数字</button>
+          <span id="contractStatus" class="muted-text">先预览关键数字，确认无误后在右侧生成合同。</span>
+        </div>
+        <label class="field-block">
+          <span>平面图备注</span>
+          <textarea data-key="floorPlanNote" data-type="textarea">平面图</textarea>
+        </label>
+      </div>
+    `;
+  }
   if (field.type === 'pricingSheet') {
     const rooms = (window.MAX2GO_DATA?.rooms || []).map((room, index) => `
       <option value="${index}">${room.building} / ${room.room} / ${room.area}㎡ / ${room.price} / ${room.status}</option>
@@ -267,12 +400,29 @@ function fieldHtml(field) {
 
 function renderStage() {
   const stage = stages.find((item) => item.id === state.stage);
+  const generateBtn = document.querySelector('#generateBtn');
+  const resultKicker = document.querySelector('.result-panel .step-kicker');
+  const resultTitle = document.querySelector('.result-panel h2');
+  const copyBtn = document.querySelector('#copyBtn');
   title.textContent = stage.title;
   desc.textContent = stage.desc;
   fields.innerHTML = stage.fields.map(fieldHtml).join('');
+  if (generateBtn) {
+    generateBtn.hidden = state.stage === 'contract';
+  }
+  if (resultKicker) resultKicker.textContent = state.stage === 'contract' ? '合同输出' : 'AI输出';
+  if (resultTitle) resultTitle.textContent = state.stage === 'contract' ? '合同文件' : '客户推进建议';
+  if (copyBtn) copyBtn.hidden = state.stage === 'contract';
+  if (state.stage === 'contract') {
+    resultBox.dataset.raw = '';
+    resultBox.innerHTML = '合同模块使用公司制式模板生成 Word 文件，不调用 AI。请填写并核对左侧字段后点击“生成合同下载”。';
+  }
   renderNav();
   if (state.stage === 'pricing') {
     wirePricingSheet();
+  }
+  if (state.stage === 'contract') {
+    wireContractBuilder();
   }
   updateScore();
 }
@@ -285,6 +435,42 @@ function setPricingValue(key, value) {
 function getPricingValue(key) {
   const node = fields.querySelector(`[data-key="${key}"]`);
   return node ? node.value : '';
+}
+
+function setContractValue(key, value) {
+  const node = fields.querySelector(`[data-key="${key}"]`);
+  if (node) node.value = value ?? '';
+}
+
+function getContractValue(key) {
+  const node = fields.querySelector(`[data-key="${key}"]`);
+  return node ? node.value : '';
+}
+
+function dateFromInput(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatInputDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date, months) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
 }
 
 function loadSelectedRoom() {
@@ -325,6 +511,87 @@ function wirePricingSheet() {
   loadSelectedRoom();
 }
 
+function updateContractAutoFields(source = null) {
+  const legal = getContractValue('legalRepresentative').trim();
+  const contact = fields.querySelector('[data-key="contactPerson"]');
+  if (contact && source?.dataset.key === 'legalRepresentative' && (contact.dataset.autoFilled === 'true' || contact.value.trim() === '')) {
+    contact.value = legal;
+    contact.dataset.autoFilled = 'true';
+  }
+
+  const propertyAddress = getContractValue('propertyAddress').trim();
+  const notice = fields.querySelector('[data-key="noticeAddress"]');
+  if (notice && source?.dataset.key === 'propertyAddress' && (notice.dataset.autoFilled === 'true' || notice.value.trim() === '')) {
+    notice.value = propertyAddress;
+    notice.dataset.autoFilled = 'true';
+  }
+
+  const leaseStart = dateFromInput(getContractValue('leaseStart'));
+  const leaseMonths = Number(getContractValue('leaseMonths') || 36);
+  if (leaseStart && leaseMonths > 0) {
+    setContractValue('leaseEnd', formatInputDate(addDays(addMonths(leaseStart, leaseMonths), -1)));
+    setContractValue('deliveryDate', formatInputDate(addDays(leaseStart, -1)));
+    const paymentDate = formatInputDate(addDays(leaseStart, -10));
+    setContractValue('firstPayDate', paymentDate);
+    setContractValue('depositPayDate', paymentDate);
+    setContractValue('rentPeriod1Start', formatInputDate(leaseStart));
+    const phaseOneMonths = Math.max(12, leaseMonths - 12);
+    const phaseTwoStart = addMonths(leaseStart, phaseOneMonths);
+    setContractValue('rentPeriod1End', formatInputDate(addDays(phaseTwoStart, -1)));
+    setContractValue('rentPeriod2Start', formatInputDate(phaseTwoStart));
+    setContractValue('rentPeriod2End', formatInputDate(addDays(addMonths(leaseStart, leaseMonths), -1)));
+
+    const pattern = getContractValue('fitoutPattern').split(',').map((item) => Number(item.trim() || 0));
+    const firstFitoutMonths = pattern[0] || 0;
+    const secondFitoutMonths = pattern[1] || 0;
+    setContractValue('fitoutStart1', firstFitoutMonths > 0 ? formatInputDate(leaseStart) : '');
+    setContractValue('fitoutEnd1', firstFitoutMonths > 0 ? formatInputDate(addDays(addMonths(leaseStart, firstFitoutMonths), -1)) : '');
+    const secondStart = addMonths(leaseStart, 12);
+    setContractValue('fitoutStart2', secondFitoutMonths > 0 ? formatInputDate(secondStart) : '');
+    setContractValue('fitoutEnd2', secondFitoutMonths > 0 ? formatInputDate(addDays(addMonths(secondStart, secondFitoutMonths), -1)) : '');
+  }
+
+  const area = Number(getContractValue('area') || 0);
+  const unitPrice = Number(getContractValue('unitPrice') || 0);
+  const propertyUnitFee = Number(getContractValue('propertyUnitFee') || 0);
+  const firstRentMonths = Number(getContractValue('firstRentMonths') || 3);
+  const depositMonths = Number(getContractValue('depositMonths') || 3);
+  const escalationRate = Number(getContractValue('escalationRate') || 0);
+  const monthlyRent = Math.round(area * unitPrice * 365 / 12);
+  const monthlyRent2 = Math.round(monthlyRent * (1 + escalationRate / 100));
+  if (monthlyRent > 0) {
+    setContractValue('monthlyRent1', String(monthlyRent));
+    setContractValue('monthlyRent2', String(monthlyRent2));
+    setContractValue('firstRent', String(monthlyRent * firstRentMonths));
+    setContractValue('deposit', String(monthlyRent * depositMonths));
+  }
+  if (area > 0 && propertyUnitFee > 0) {
+    setContractValue('propertyFee', String(Math.round(area * propertyUnitFee)));
+  }
+}
+
+function wireContractBuilder() {
+  const currentYear = String(new Date().getFullYear());
+  if (!getContractValue('signYear')) setContractValue('signYear', currentYear);
+  setContractValue('leaseMonths', '36');
+  setContractValue('fitoutPattern', '2,1,0');
+  setContractValue('firstRentMonths', '3');
+  setContractValue('depositMonths', '3');
+  fields.querySelectorAll('[data-key]').forEach((node) => {
+    if (node.dataset.key === 'contactPerson' || node.dataset.key === 'noticeAddress') {
+      node.addEventListener('input', () => { node.dataset.autoFilled = 'false'; });
+    }
+    node.addEventListener('input', () => updateContractAutoFields(node));
+    node.addEventListener('change', () => updateContractAutoFields(node));
+  });
+  const contact = fields.querySelector('[data-key="contactPerson"]');
+  const notice = fields.querySelector('[data-key="noticeAddress"]');
+  if (contact && contact.value.trim() !== '') contact.dataset.autoFilled = 'true';
+  if (notice && notice.value.trim() !== '') notice.dataset.autoFilled = 'true';
+  updateContractAutoFields();
+  document.querySelector('#contractPreviewBtn')?.addEventListener('click', previewContractSummary);
+}
+
 function setCustomer(customer) {
   document.querySelector('#customerName').value = customer.name;
   document.querySelector('#customerArea').value = customer.area;
@@ -348,6 +615,9 @@ function applyStageValues(stageId) {
       node.value = value;
     }
   });
+  if (stageId === 'contract') {
+    updateContractAutoFields();
+  }
   updateScore();
 }
 
@@ -355,7 +625,9 @@ function loadDemoScenario() {
   setCustomer(demoScenario.customer);
   applyStageValues(state.stage);
   resultBox.dataset.raw = '';
-  resultBox.innerHTML = '已载入演示客户“星澜智能科技有限公司”。现在可以直接点击“生成AI建议”；切换其他流程模块后，再点一次“载入演示客户”会填入对应模块的示例信息。';
+  resultBox.innerHTML = state.stage === 'contract'
+    ? '已载入演示客户“星澜智能科技有限公司”。请核对合同字段后点击“生成合同下载”。'
+    : '已载入演示客户“星澜智能科技有限公司”。现在可以直接点击“生成AI建议”；切换其他流程模块后，再点一次“载入演示客户”会填入对应模块的示例信息。';
 }
 
 function collectPayload() {
@@ -716,6 +988,59 @@ async function calculatePricing() {
     <h4>报价空间</h4>
     <p>若希望控制在 ${decimal(r.targetJYears)} 年J回正附近，按当前面积、免租和涨幅条件反推，合同单价约为 <strong>${decimal(r.targetContractPrice, 3)} 元/㎡/天</strong>。实际对外报价建议结合客户决策速度、付款周期、免租期和审批底线再做调整。</p>
   `;
+}
+
+async function generateContractDocx() {
+  const button = document.querySelector('#contractDownloadBtn');
+  if (!button) return;
+  button.disabled = true;
+  button.textContent = '生成中...';
+  try {
+    const res = await fetch('api/contract.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectPayload()),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '合同生成失败');
+    resultBox.innerHTML += `<p class="demo-note">已生成：<a href="${escapeHtml(data.downloadUrl)}">${escapeHtml(data.filename)}</a></p>`;
+  } catch (error) {
+    resultBox.innerHTML += `<p class="form-error">${escapeHtml(error.message)}</p>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = '生成合同下载';
+  }
+}
+
+function previewContractSummary() {
+  updateContractAutoFields();
+  const payload = collectPayload();
+  const data = payload.inputs;
+  const summary = [
+    ['承租方', data.tenantName],
+    ['房屋地址', data.propertyAddress],
+    ['计租面积', `${data.area || '-'} ㎡`],
+    ['租期', `${data.leaseStart || '-'} 至 ${data.leaseEnd || '-'}（${data.leaseMonths || '-'}个月）`],
+    ['交付日期', data.deliveryDate],
+    ['装修期', `${data.fitoutPattern || '-'}；${data.fitoutStart1 || '-'} 至 ${data.fitoutEnd1 || '-'}；${data.fitoutStart2 || '-'} 至 ${data.fitoutEnd2 || '-'}`],
+    ['首期/保证金应缴日期', `${data.firstPayDate || '-'} / ${data.depositPayDate || '-'}`],
+    ['月租金', `${money(data.monthlyRent1)} 元；递增后 ${money(data.monthlyRent2)} 元`],
+    ['物业费', `${money(data.propertyFee)} 元/月`],
+    ['首期租金', `${money(data.firstRent)} 元（${data.firstRentMonths || '-'}个月）`],
+    ['保证金', `${money(data.deposit)} 元（${data.depositMonths || '-'}个月）`],
+  ];
+  resultBox.dataset.raw = summary.map(([label, value]) => `${label}: ${value}`).join('\n');
+  resultBox.innerHTML = `
+    <h3>合同关键数字预览</h3>
+    <table class="excel-table output-table">
+      <tbody>
+        ${summary.map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value)}</td></tr>`).join('')}
+      </tbody>
+    </table>
+    <p>请核对左侧字段和上方关键数字。确认无误后生成公司制式合同。</p>
+    <button id="contractDownloadBtn" class="primary-btn" type="button">生成合同下载</button>
+  `;
+  document.querySelector('#contractDownloadBtn')?.addEventListener('click', generateContractDocx);
 }
 
 nav.addEventListener('click', (event) => {
