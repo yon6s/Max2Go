@@ -488,37 +488,6 @@ fieldset.field-block {
   line-height: 1.6;
 }
 
-.template-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.file-btn {
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.file-btn input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.download-link {
-  color: var(--brand-dark);
-  font-weight: 700;
-}
-
 .j-table-preview strong {
   color: var(--brand-dark);
 }

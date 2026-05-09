@@ -183,13 +183,6 @@ function fieldHtml(field) {
           </label>
           <button class="secondary-btn" id="loadRoomBtn" type="button">载入房源</button>
         </div>
-        <div class="template-bar">
-          <span id="templateStatus">Excel模板：检查中</span>
-          <label class="secondary-btn file-btn">
-            上传/替换模板
-            <input id="templateUpload" type="file" accept=".xlsx">
-          </label>
-        </div>
         <table class="excel-table">
           <thead>
             <tr>
@@ -317,10 +310,8 @@ function updatePricingDiffs() {
 function wirePricingSheet() {
   document.querySelector('#loadRoomBtn')?.addEventListener('click', loadSelectedRoom);
   document.querySelector('#pricingRoomSelect')?.addEventListener('change', loadSelectedRoom);
-  document.querySelector('#templateUpload')?.addEventListener('change', uploadPricingTemplate);
   fields.querySelectorAll('input, select').forEach((node) => node.addEventListener('input', updatePricingDiffs));
   loadSelectedRoom();
-  refreshTemplateStatus();
 }
 
 function setCustomer(customer) {
@@ -668,35 +659,30 @@ async function calculatePricing() {
   if (!res.ok) throw new Error(data.error || '测算失败');
   const r = data.result;
   const status = r.breakRate >= 0 ? '未破底' : `破底 ${percent(r.breakRate)}`;
-  const fallback = r.fallback || {};
-  const approvedRent = Number(r.approvedRent || fallback.approvedRent || 0);
-  const contractRent = Number(r.contractRent || fallback.contractRent || 0);
-  const rentDiff = Number(r.rentDiff || fallback.rentDiff || 0);
-  const approvedProperty = Number(r.approvedProperty || fallback.approvedProperty || 0);
-  const contractProperty = Number(r.contractProperty || fallback.contractProperty || 0);
-  const propertyDiff = Number(r.propertyDiff || fallback.propertyDiff || 0);
-  const specialDiff = Number(r.specialDiff || fallback.specialItems || 0);
-  const downloadHref = r.download ? `../${r.download}` : '';
   const raw = `价格测算结果
 租决面积：${decimal(r.approvedArea)}㎡
 租决价格：${decimal(r.approvedPrice, 3)} 元/㎡/天
+成本折算溢价：${decimal(r.costPremium, 3)} 元/㎡/天
+有效租决价格：${decimal(r.effectiveApprovedPrice, 3)} 元/㎡/天
 合同面积：${decimal(r.contractArea)}㎡
 合同价格：${decimal(r.contractPrice, 3)} 元/㎡/天
-租决租金总额：${money(approvedRent)} 元
-客户租金总额：${money(contractRent)} 元
-物业收入差额：${money(propertyDiff)} 元
-特殊事项：${money(specialDiff)} 元
+租决租金总额：${money(r.approvedRent)} 元
+客户租金总额：${money(r.contractRent)} 元
+物业收入差额：${money(r.propertyDiff)} 元
+特殊事项：${money(r.specialItems)} 元
 综合破底率：${percent(r.breakRate)}
-预计J回正年数：${decimal(r.jYears)} 年`;
+预计J回正年数：${decimal(r.jYears)} 年
+目标J回正年数：${decimal(r.targetJYears)} 年
+目标破底率：${percent(r.targetBreakRate)}
+目标合同单价：${decimal(r.targetContractPrice, 3)} 元/㎡/天`;
 
   resultBox.dataset.raw = raw;
   resultBox.innerHTML = `
     <h3>价格测算结果：${status}</h3>
-    ${r.recalculated ? '<p class="demo-note">已调用Excel模板并尝试重算。公式可通过替换模板更新。</p>' : '<p class="demo-note">服务器未检测到LibreOffice，已写入Excel并用后端备用公式计算关键指标。建议服务器安装LibreOffice以完整执行Excel公式。</p>'}
     <div class="calc-grid">
       <div><span>预计J回正</span><strong>${decimal(r.jYears)} 年</strong></div>
       <div><span>综合破底率</span><strong>${percent(r.breakRate)}</strong></div>
-      <div><span>本次测算Excel</span><strong>${downloadHref ? '可下载' : '未生成'}</strong></div>
+      <div><span>目标合同单价</span><strong>${decimal(r.targetContractPrice, 3)}</strong></div>
       <div><span>当前合同单价</span><strong>${decimal(r.contractPrice, 3)}</strong></div>
     </div>
     <table class="excel-table output-table">
@@ -704,50 +690,17 @@ async function calculatePricing() {
       <tbody>
         <tr><td>面积/㎡</td><td>${decimal(r.approvedArea)}</td><td>${decimal(r.contractArea)}</td><td>${decimal(r.contractArea - r.approvedArea)}</td></tr>
         <tr><td>单价/元/㎡·天</td><td>${decimal(r.approvedPrice, 3)}</td><td>${decimal(r.contractPrice, 3)}</td><td>${decimal(r.contractPrice - r.approvedPrice, 3)}</td></tr>
-        <tr><td>合同周期租金总额</td><td>${money(approvedRent)}</td><td>${money(contractRent)}</td><td>${money(rentDiff)}</td></tr>
-        <tr><td>合同周期物业总额</td><td>${money(approvedProperty)}</td><td>${money(contractProperty)}</td><td>${money(propertyDiff)}</td></tr>
-        <tr><td>特殊事项</td><td>-</td><td>${money(specialDiff)}</td><td>${money(specialDiff)}</td></tr>
+        <tr><td>成本折算溢价</td><td>${decimal(r.costPremium, 3)}</td><td>-</td><td>有效租决价 ${decimal(r.effectiveApprovedPrice, 3)}</td></tr>
+        <tr><td>合同周期租金总额</td><td>${money(r.approvedRent)}</td><td>${money(r.contractRent)}</td><td>${money(r.rentDiff)}</td></tr>
+        <tr><td>合同周期物业总额</td><td>${money(r.approvedProperty)}</td><td>${money(r.contractProperty)}</td><td>${money(r.propertyDiff)}</td></tr>
+        <tr><td>特殊事项</td><td>-</td><td>${money(r.specialItems)}</td><td>${money(r.specialItems)}</td></tr>
         <tr><td>综合破底率</td><td colspan="2">按Excel公式：(租金差额 + 物业差额 + 特殊事项) / 租决租金总额</td><td><strong>${percent(r.breakRate)}</strong></td></tr>
         <tr><td>J回正年数</td><td colspan="2">调用Excel右侧破底率-J回正表插值</td><td><strong>${decimal(r.jYears)} 年</strong></td></tr>
       </tbody>
     </table>
-    ${downloadHref ? `<p><a class="download-link" href="${downloadHref}" target="_blank">下载本次测算Excel</a></p>` : ''}
+    <h4>报价空间</h4>
+    <p>若希望控制在 ${decimal(r.targetJYears)} 年J回正附近，按当前面积、免租和涨幅条件反推，合同单价约为 <strong>${decimal(r.targetContractPrice, 3)} 元/㎡/天</strong>。实际对外报价建议结合客户决策速度、付款周期、免租期和审批底线再做调整。</p>
   `;
-}
-
-async function refreshTemplateStatus() {
-  try {
-    const res = await fetch('api/price.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ csrf, action: 'template_status' }),
-    });
-    const data = await res.json();
-    const status = document.querySelector('#templateStatus');
-    if (!status) return;
-    status.textContent = data.template?.exists
-      ? `Excel模板：已加载，更新时间 ${data.template.updated_at || '-'}`
-      : 'Excel模板：未上传';
-  } catch {
-    const status = document.querySelector('#templateStatus');
-    if (status) status.textContent = 'Excel模板：状态读取失败';
-  }
-}
-
-async function uploadPricingTemplate(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const form = new FormData();
-  form.append('csrf', csrf);
-  form.append('action', 'upload_template');
-  form.append('template', file);
-  const res = await fetch('api/price.php', { method: 'POST', body: form });
-  const data = await res.json();
-  if (!res.ok) {
-    alert(data.error || '上传失败');
-    return;
-  }
-  await refreshTemplateStatus();
 }
 
 nav.addEventListener('click', (event) => {
