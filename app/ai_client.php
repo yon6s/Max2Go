@@ -16,6 +16,12 @@ function ai_provider_configs(): array
             'base_url' => rtrim((string)app_config('qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode/v1'), '/'),
             'model' => (string)app_config('qwen_model', 'qwen-plus'),
         ],
+        'demo' => [
+            'label' => '演示结果',
+            'api_key' => 'local-demo',
+            'base_url' => '',
+            'model' => '本地演示',
+        ],
     ];
 }
 

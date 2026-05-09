@@ -165,7 +165,7 @@ function renderProviderSelect() {
   const select = document.querySelector('#providerSelect');
   if (!select) return;
   select.innerHTML = Object.entries(aiMeta.providers || {}).map(([key, provider]) => {
-    const status = provider.configured ? provider.model : `${provider.model} / 演示`;
+    const status = key === 'demo' ? '本地兜底' : (provider.configured ? provider.model : `${provider.model} / 演示`);
     return `<option value="${escapeHtml(key)}">${escapeHtml(provider.label)} · ${escapeHtml(status)}</option>`;
   }).join('');
   select.value = aiMeta.active || 'deepseek';
@@ -639,7 +639,8 @@ async function generate() {
     resultBox.dataset.raw = data.content;
     resultBox.innerHTML = markdownToHtml(data.content);
     if (data.demo) {
-      resultBox.innerHTML += `<p class="demo-note">当前为演示模式：${escapeHtml(data.providerLabel || '模型接口')} 未配置 API Key。</p>`;
+      const reason = data.provider === 'demo' ? '本地演示结果，不调用外部 API。' : `${escapeHtml(data.providerLabel || '模型接口')} 未配置 API Key。`;
+      resultBox.innerHTML += `<p class="demo-note">当前为演示模式：${reason}</p>`;
     } else if (data.providerLabel && data.model) {
       resultBox.innerHTML += `<p class="demo-note">由 ${escapeHtml(data.providerLabel)} / ${escapeHtml(data.model)} 生成。</p>`;
     }

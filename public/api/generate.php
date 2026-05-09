@@ -22,6 +22,16 @@ $providerKey = ai_active_provider($payload);
 $providers = ai_provider_configs();
 $provider = $providers[$providerKey];
 
+if ($providerKey === 'demo') {
+    json_response([
+        'content' => demo_stage_result($stage, $payload),
+        'demo' => true,
+        'provider' => $providerKey,
+        'providerLabel' => $provider['label'],
+        'model' => $provider['model'],
+    ]);
+}
+
 if ($provider['api_key'] === '' && app_config('demo_mode_when_no_key', true)) {
     json_response([
         'content' => demo_stage_result($stage, $payload),
