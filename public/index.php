@@ -21,6 +21,8 @@ if (isset($_GET['logout'])) {
 }
 
 $csrf = csrf_token();
+require_once __DIR__ . '/../app/ai_client.php';
+$aiMeta = ai_public_meta();
 ?>
 <!doctype html>
 <html lang="zh-CN">
@@ -48,14 +50,21 @@ $csrf = csrf_token();
         </section>
     </main>
 <?php else: ?>
-    <div class="app" data-csrf="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+    <div
+        class="app"
+        data-csrf="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>"
+        data-ai-meta="<?= htmlspecialchars(json_encode($aiMeta, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>"
+    >
         <header class="topbar">
             <div>
                 <p class="eyebrow">MAX科技园</p>
                 <h1>MAX租赁AI工作台</h1>
             </div>
             <div class="top-actions">
-                <span class="status-pill">DeepSeek 默认接口</span>
+                <label class="model-switch">
+                    <span>模型接口</span>
+                    <select id="providerSelect"></select>
+                </label>
                 <button id="demoBtn" class="secondary-btn" type="button">载入演示客户</button>
                 <button id="knowledgeBtn" class="secondary-btn" type="button">知识库管理</button>
                 <a href="?logout=1" class="ghost-link">退出</a>
@@ -111,7 +120,7 @@ $csrf = csrf_token();
                     <button id="copyBtn" class="secondary-btn">复制</button>
                 </div>
                 <article id="resultBox" class="result-box">
-                    请选择左侧流程模块，填写或勾选信息后生成。第一版支持演示模式：未配置 API Key 时会返回本地示例结果；配置后自动调用 DeepSeek。
+                    请选择左侧流程模块，填写或勾选信息后生成。支持 DeepSeek 与通义千问接口切换；未配置 API Key 时会返回本地演示结果。
                 </article>
             </section>
         </main>

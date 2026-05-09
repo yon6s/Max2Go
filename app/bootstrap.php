@@ -1,12 +1,18 @@
 <?php
 declare(strict_types=1);
 
+const APP_ROOT = __DIR__ . '/..';
+
+$sessionPath = APP_ROOT . '/storage/sessions';
+if (!is_dir($sessionPath)) {
+    mkdir($sessionPath, 0700, true);
+}
+ini_set('session.save_path', $sessionPath);
+
 session_start([
     'cookie_httponly' => true,
     'cookie_samesite' => 'Lax',
 ]);
-
-const APP_ROOT = __DIR__ . '/..';
 
 $configFile = __DIR__ . '/config.php';
 if (is_file($configFile)) {
@@ -63,4 +69,3 @@ function verify_csrf(?string $token): bool
 {
     return is_string($token) && hash_equals($_SESSION['csrf'] ?? '', $token);
 }
-

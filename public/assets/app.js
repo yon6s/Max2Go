@@ -149,6 +149,7 @@ const demoScenario = {
 const state = { stage: stages[0].id };
 const root = document.querySelector('.app');
 const csrf = root?.dataset.csrf || '';
+const aiMeta = JSON.parse(root?.dataset.aiMeta || '{"active":"deepseek","providers":{}}');
 const nav = document.querySelector('.flow-nav');
 const fields = document.querySelector('#stageFields');
 const title = document.querySelector('#stageTitle');
@@ -159,6 +160,16 @@ const knowledgeModal = document.querySelector('#knowledgeModal');
 let knowledgeMeta = null;
 let knowledgeItems = [];
 let projectItems = [];
+
+function renderProviderSelect() {
+  const select = document.querySelector('#providerSelect');
+  if (!select) return;
+  select.innerHTML = Object.entries(aiMeta.providers || {}).map(([key, provider]) => {
+    const status = provider.configured ? provider.model : `${provider.model} / 演示`;
+    return `<option value="${escapeHtml(key)}">${escapeHtml(provider.label)} · ${escapeHtml(status)}</option>`;
+  }).join('');
+  select.value = aiMeta.active || 'deepseek';
+}
 
 function renderNav() {
   nav.innerHTML = stages.map((stage) => `
@@ -371,7 +382,8 @@ function collectPayload() {
     }
   });
 
-  return { csrf, stage: state.stage, project, customer, inputs };
+  const provider = document.querySelector('#providerSelect')?.value || aiMeta.active || 'deepseek';
+  return { csrf, stage: state.stage, provider, project, customer, inputs };
 }
 
 function updateScore() {
@@ -627,7 +639,9 @@ async function generate() {
     resultBox.dataset.raw = data.content;
     resultBox.innerHTML = markdownToHtml(data.content);
     if (data.demo) {
-      resultBox.innerHTML += '<p class="demo-note">当前为演示模式：配置 DeepSeek API Key 后会切换为真实AI生成。</p>';
+      resultBox.innerHTML += `<p class="demo-note">当前为演示模式：${escapeHtml(data.providerLabel || '模型接口')} 未配置 API Key。</p>`;
+    } else if (data.providerLabel && data.model) {
+      resultBox.innerHTML += `<p class="demo-note">由 ${escapeHtml(data.providerLabel)} / ${escapeHtml(data.model)} 生成。</p>`;
     }
   } catch (error) {
     resultBox.textContent = error.message;
@@ -754,5 +768,6 @@ document.querySelector('#copyBtn').addEventListener('click', async () => {
   setTimeout(() => { document.querySelector('#copyBtn').textContent = '复制'; }, 1200);
 });
 
+renderProviderSelect();
 renderStage();
 loadKnowledgeMeta().catch(() => {});
