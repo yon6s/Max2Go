@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MAMP_PHP="/Applications/MAMP/bin/php/php8.4.17/bin/php"
+
+if [[ -x "$MAMP_PHP" ]]; then
+  exec "$MAMP_PHP" "$@"
+fi
+
+exec php "$@"
