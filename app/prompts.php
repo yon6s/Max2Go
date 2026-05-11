@@ -20,34 +20,40 @@ function stage_prompt(string $stage, array $payload): array
     $stageName = $stageNames[$stage] ?? '租赁业务辅助';
     $projectKey = (string)($payload['project']['key'] ?? 'general');
     $projectName = (string)($payload['project']['name'] ?? 'MAX科技园（通用）');
-    $staticKnowledge = project_knowledge($projectKey);
+
+    // 仅在关键销售环节引入长篇竞品和项目分析（合同、看板等阶段不需要，以省Token）
+    $needsStaticKnowledge = in_array($stage, ['lead', 'space', 'recap', 'proposal', 'negotiation'], true);
+    $staticKnowledge = $needsStaticKnowledge ? project_knowledge($projectKey) : '';
     $managedKnowledge = knowledge_context($projectKey, $stage);
     $knowledge = trim($managedKnowledge . "\n\n" . $staticKnowledge);
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $knowledgeSection = $knowledge ? "项目知识库（优先使用用户维护资料，其次为内置项目资料）：\n{$knowledge}\n\n" : '';
+
+    // 剔除前端传来的空字段与无关元数据（如 csrf, provider），极致减小 JSON 体积
+    $inputs = array_filter($payload['inputs'] ?? [], static fn($v) => $v !== '' && $v !== []);
+    $cleanPayload = [
+        'customer' => $payload['customer'] ?? [],
+        'inputs' => $inputs
+    ];
+    $json = json_encode($cleanPayload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
     $system = <<<PROMPT
 你是 MAX科技园资深租赁总监和AI业务助理，帮助一线租赁顾问把客户从获客推进到签约。
-输出必须专业、可直接复制给业务员使用，避免空泛口号。
-所有建议都要符合商业写字楼/产业园租赁语境，强调可执行、可复盘、可上报。
-合同相关内容只生成业务草案和风险提示，不替代法务审核。
+输出专业、直接可复制给业务员，避免空泛口号，符合商业办公租赁语境。
 当前项目：{$projectName}
-必须优先参考项目知识库，但不要逐字照抄；请把项目优势转化成适合客户场景的业务话术。
+必须优先参考项目知识库（如有），将其转化成适合客户场景的业务话术，但不要逐字照抄。
 PROMPT;
 
     $user = <<<PROMPT
 当前模块：{$stageName}
 
-请根据下面的页面输入，生成该模块的结果。要求：
-1. 先给出简短结论。
-2. 再按小标题输出：评分/判断、推荐动作、可复制话术、风险提醒、下一步。
-3. 如果信息不足，请列出需要补充的字段，但仍然基于已有信息给出可用版本。
-4. 不要编造具体政策、真实房号、法务结论。
-5. 如涉及竞品对抗，用客观比较表达，避免贬损口吻。
+请根据页面输入，生成该模块的结果。要求：
+1. 先给简短结论。
+2. 按小标题输出：评分/判断、推荐动作、可复制话术、风险提醒、下一步。
+3. 若信息不足，请列出需补充字段，但仍给出现有信息下的可用建议。
+4. 勿编造具体政策、真实房号、法务结论。
+5. 如涉及竞品，客观对比，避免贬损。
 
-项目知识库（优先使用前面的用户维护资料，其次使用内置项目资料）：
-{$knowledge}
-
-页面输入：
+{$knowledgeSection}页面输入：
 {$json}
 PROMPT;
 

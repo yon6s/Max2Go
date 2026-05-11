@@ -140,7 +140,7 @@ function contract_replace_text_nodes(DOMNodeList $textNodes, string $search, str
 
         foreach ($textNodes as $index => $node) {
             $length = mb_strlen($node->nodeValue);
-            if ($startIndex === null && $position <= $cursor + $length) {
+            if ($startIndex === null && $position < $cursor + $length) {
                 $startIndex = $index;
                 $startOffset = max(0, $position - $cursor);
             }
@@ -163,10 +163,8 @@ function contract_replace_text_nodes(DOMNodeList $textNodes, string $search, str
             $value = $node->nodeValue;
             if ($startIndex === $endIndex) {
                 $node->nodeValue = mb_substr($value, 0, $startOffset) . $replace . mb_substr($value, $endOffset);
-                contract_underline_text_node($node);
             } elseif ($index === $startIndex) {
                 $node->nodeValue = mb_substr($value, 0, $startOffset) . $replace;
-                contract_underline_text_node($node);
             } elseif ($index === $endIndex) {
                 $node->nodeValue = mb_substr($value, $endOffset);
             } else {
@@ -181,35 +179,7 @@ function contract_replace_text_nodes(DOMNodeList $textNodes, string $search, str
 
 function contract_underline_text_node(DOMNode $textNode): void
 {
-    $run = $textNode->parentNode;
-    while ($run instanceof DOMNode && $run->localName !== 'r') {
-        $run = $run->parentNode;
-    }
-    if (!$run instanceof DOMElement) {
-        return;
-    }
-
-    $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-    $runProps = null;
-    foreach ($run->childNodes as $child) {
-        if ($child instanceof DOMElement && $child->localName === 'rPr') {
-            $runProps = $child;
-            break;
-        }
-    }
-    if (!$runProps instanceof DOMElement) {
-        $runProps = $run->ownerDocument->createElementNS($namespace, 'w:rPr');
-        $run->insertBefore($runProps, $run->firstChild);
-    }
-    foreach ($runProps->childNodes as $child) {
-        if ($child instanceof DOMElement && $child->localName === 'u') {
-            $child->setAttributeNS($namespace, 'w:val', 'single');
-            return;
-        }
-    }
-    $underline = $run->ownerDocument->createElementNS($namespace, 'w:u');
-    $underline->setAttributeNS($namespace, 'w:val', 'single');
-    $runProps->appendChild($underline);
+    // Deprecated. Do not force underlines anymore.
 }
 
 function contract_apply_replacements(string $xml, array $replacements): string
@@ -226,8 +196,19 @@ function contract_apply_replacements(string $xml, array $replacements): string
         if ($textNodes->length === 0) {
             continue;
         }
+        $textContent = preg_replace('/\s+/', '', $paragraph->textContent);
+        
         foreach ($replacements as $search => $replace) {
-            contract_replace_text_nodes($textNodes, (string)$search, (string)$replace);
+            if (is_array($replace)) {
+                $searchNoSpace = preg_replace('/\s+/', '', $search);
+                if (mb_strpos($textContent, $searchNoSpace) !== false) {
+                    foreach ($replace as $innerSearch => $innerReplace) {
+                        contract_replace_text_nodes($textNodes, (string)$innerSearch, (string)$innerReplace);
+                    }
+                }
+            } else {
+                contract_replace_text_nodes($textNodes, (string)$search, (string)$replace);
+            }
         }
     }
 
@@ -251,33 +232,84 @@ function contract_rent_rows(array $input): array
     $leaseStart = contract_date_object(contract_value($input, 'leaseStart', '2025-12-28'));
     $leaseMonths = max(1, (int)contract_value($input, 'leaseMonths', '36'));
     $leaseEnd = $leaseStart->modify('+' . $leaseMonths . ' months')->modify('-1 day');
-    $phaseTwoStart = contract_date_object(contract_value($input, 'rentPeriod2Start', $leaseStart->modify('+' . max(12, $leaseMonths - 12) . ' months')->format('Y-m-d')));
+    
+    $fitoutStart1 = contract_value($input, 'fitoutStart1', '');
+    $fitoutEnd1 = contract_value($input, 'fitoutEnd1', '');
+    $fitoutStart2 = contract_value($input, 'fitoutStart2', '');
+    $fitoutEnd2 = contract_value($input, 'fitoutEnd2', '');
+    
     $monthlyRent1 = (float)contract_value($input, 'monthlyRent1', '11680');
     $monthlyRent2 = (float)contract_value($input, 'monthlyRent2', '12264');
+    $phaseTwoStart = contract_date_object(contract_value($input, 'rentPeriod2Start', '2099-12-31'));
     $firstMonths = max(1, min(4, (int)contract_value($input, 'firstRentMonths', '3')));
+    $paymentCycle = (int)contract_value($input, 'paymentCycle', '3');
 
     $rows = [];
-    $periodStart = $leaseStart;
-    $monthsRemaining = $leaseMonths;
+    $leaseStartYear = (int)$leaseStart->format('Y');
+    $leaseStartMonth = (int)$leaseStart->format('n');
+    $leaseStartDay = (int)$leaseStart->format('j');
+    
+    $monthIndex = 0;
     $first = true;
 
-    while ($monthsRemaining > 0) {
-        $months = $first ? min($firstMonths, $monthsRemaining) : min(3, $monthsRemaining);
-        $periodEnd = $periodStart->modify('+' . $months . ' months')->modify('-1 day');
+    while ($monthIndex < $leaseMonths) {
+        $targetPaidMonths = $first ? $firstMonths : $paymentCycle;
+        $paidMonthsAccumulated = 0;
+        $amount = 0.0;
+        $periodStartIndex = $monthIndex;
+        
+        while ($monthIndex < $leaseMonths && $paidMonthsAccumulated < $targetPaidMonths) {
+            $startMonthTotal = $leaseStartMonth + $monthIndex;
+            $y = $leaseStartYear + intdiv($startMonthTotal - 1, 12);
+            $m = (($startMonthTotal - 1) % 12) + 1;
+            $d = $leaseStartDay;
+            $dim = cal_days_in_month(CAL_GREGORIAN, $m, $y);
+            if ($d > $dim) $d = $dim;
+            
+            $monthStart = new DateTimeImmutable(sprintf('%04d-%02d-%02d', $y, $m, $d));
+            $midDay = $monthStart->modify('+15 days');
+            $dateStr = $midDay->format('Y-m-d');
+            
+            $isFree = false;
+            if ($fitoutStart1 !== '' && $fitoutEnd1 !== '' && $dateStr >= $fitoutStart1 && $dateStr <= $fitoutEnd1) {
+                $isFree = true;
+            }
+            if ($fitoutStart2 !== '' && $fitoutEnd2 !== '' && $dateStr >= $fitoutStart2 && $dateStr <= $fitoutEnd2) {
+                $isFree = true;
+            }
+            
+            if (!$isFree) {
+                $amount += $monthStart >= $phaseTwoStart ? $monthlyRent2 : $monthlyRent1;
+                $paidMonthsAccumulated++;
+            }
+            
+            $monthIndex++;
+        }
+        
+        $startTotal = $leaseStartMonth + $periodStartIndex;
+        $y1 = $leaseStartYear + intdiv($startTotal - 1, 12);
+        $m1 = (($startTotal - 1) % 12) + 1;
+        $d1 = $leaseStartDay;
+        $dim1 = cal_days_in_month(CAL_GREGORIAN, $m1, $y1);
+        if ($d1 > $dim1) $d1 = $dim1;
+        $periodStart = new DateTimeImmutable(sprintf('%04d-%02d-%02d', $y1, $m1, $d1));
+        
+        $endTotal = $leaseStartMonth + $monthIndex;
+        $y2 = $leaseStartYear + intdiv($endTotal - 1, 12);
+        $m2 = (($endTotal - 1) % 12) + 1;
+        $d2 = $leaseStartDay;
+        $dim2 = cal_days_in_month(CAL_GREGORIAN, $m2, $y2);
+        if ($d2 > $dim2) $d2 = $dim2;
+        $periodEnd = (new DateTimeImmutable(sprintf('%04d-%02d-%02d', $y2, $m2, $d2)))->modify('-1 day');
+        
         if ($periodEnd > $leaseEnd) {
             $periodEnd = $leaseEnd;
-        }
-
-        $amount = 0.0;
-        $monthCursor = $periodStart;
-        for ($i = 0; $i < $months; $i++) {
-            $amount += $monthCursor >= $phaseTwoStart ? $monthlyRent2 : $monthlyRent1;
-            $monthCursor = $monthCursor->modify('+1 month');
         }
 
         $dueDate = $first
             ? contract_date_object(contract_value($input, 'firstPayDate', $leaseStart->modify('-10 days')->format('Y-m-d')))
             : $periodStart->modify('-10 days');
+            
         $net = $amount / 1.09;
         $tax = $amount - $net;
         $rows[] = [
@@ -285,13 +317,11 @@ function contract_rent_rows(array $input): array
             contract_display_date($periodStart),
             '～',
             contract_display_date($periodEnd),
-            number_format($amount, 2),
-            number_format($tax, 2),
-            number_format($net, 2),
+            number_format($amount, 2, '.', ''),
+            number_format($tax, 2, '.', ''),
+            number_format($net, 2, '.', ''),
         ];
 
-        $periodStart = $periodEnd->modify('+1 day');
-        $monthsRemaining -= $months;
         $first = false;
     }
 
@@ -380,31 +410,59 @@ function generate_contract_docx(array $input): array
         '上海市奉贤区南桥镇西闸公路566号' => contract_value($input, 'registeredAddress', '上海市奉贤区南桥镇西闸公路566号'),
         '杨应新' => contract_value($input, 'legalRepresentative', '杨应新'),
         '13918141990' => contract_value($input, 'tenantPhone', '13918141990'),
-        '【2025】年【11】月【5】日' => '【' . $signYear . '】年【' . $signMonth . '】月【' . $signDay . '】日',
+        '【2025】' => '【' . $signYear . '】',
+        '【11】' => '【' . $signMonth . '】',
+        '【5】' => '【' . $signDay . '】',
         '上海市宝山区罗店路388弄33号B座706室' => $propertyAddress,
         'B座706室' => $roomCode,
-        '租赁期限为36个月' => '租赁期限为' . $leaseMonths . '个月',
-        '自2025年12月28日起至2028年12月27日止' => '自' . $leaseStart . '起至' . $leaseEnd . '止',
-        '自2025年12月28日起至2026年2月27日' => '自' . $fitoutStart1 . '起至' . $fitoutEnd1,
-        '自2026年12月28日起至2027年1月27日' => '自' . $fitoutStart2 . '起至' . $fitoutEnd2,
-        '2025年12月27日向承租方交付标的房屋' => $deliveryDate . '向承租方交付标的房屋',
-        '自2025年12月28日起至2027年12月27日止的租金为人民币:11680元/月' => '自' . $rentPeriod1Start . '起至' . $rentPeriod1End . '止的租金为人民币:' . (int)$monthlyRent1 . '元/月',
-        '自2027年12月28日起至2028年12月27日止的租金为人民币:12264元/月' => '自' . $rentPeriod2Start . '起至' . $rentPeriod2End . '止的租金为人民币:' . (int)$monthlyRent2 . '元/月',
-        '承租方应于本合同签订之日起30日内，向出租方支付首期房屋租金（“首期租金”）人民币（大写）：叁万伍仟零肆拾元整 （￥：35040.00元）（含9%增值税）。' =>
-            '承租方应于本合同签订之日起30日内，向出租方支付首期房屋租金（“首期租金”）人民币（大写）：' . contract_money_upper($firstRent) . ' （￥：' . contract_money($firstRent) . '元）（含9%增值税）。',
-        '承租方应于本合同签订之日起30日内向出租方支付保证金人民币（大写）：叁万伍仟零肆拾元整 （￥：35040.00元），作为承租方履行本合同之担保，保证金不计利息，出租方向承租方开具收据。标的房屋租金调整的，保证金亦同时相应调整。' =>
-            '承租方应于本合同签订之日起30日内向出租方支付保证金人民币（大写）：' . contract_money_upper($deposit) . ' （￥：' . contract_money($deposit) . '元），作为承租方履行本合同之担保，保证金不计利息，出租方向承租方开具收据。标的房屋租金调整的，保证金亦同时相应调整。',
-        '物业管理费金额为2880元/月' => '物业管理费金额为' . (int)$propertyFee . '元/月',
-        '该房屋计租面积为240m²' => '该房屋计租面积为' . $area . 'm²',
-        '出租方联络地址为：【上海市宝山区罗店路388弄MAX科技园】' => '出租方联络地址为：【' . contract_value($input, 'lessorNoticeAddress', '上海市宝山区罗店路388弄MAX科技园') . '】',
-        '承租方联络地址为：【上海市宝山区罗店路388弄33号B座706室】' => '承租方联络地址为：【' . $noticeAddress . '】',
-        '电话：【021-56590771】         联系人：【葛英林】' => '电话：【' . contract_value($input, 'lessorPhone', '021-56590771') . '】         联系人：【' . contract_value($input, 'lessorContact', '葛英林') . '】',
-        '电话：【13918141990】          联系人：【杨应新】' => '电话：【' . contract_value($input, 'tenantPhone', '13918141990') . '】          联系人：【' . $contactPerson . '】',
-        '应向国家缴纳税款1250元/㎡' => '应向国家缴纳税款' . $taxPerSqm . '元/㎡',
-        '2025年12月5日' => contract_cn_date(contract_value($input, 'firstPayDate', date('Y-m-d')), '2025年12月5日'),
-        '35,040.00' => number_format($firstRent, 2),
-        '32,146.79' => number_format($firstRent / 1.09, 2),
-        '2,893.21' => number_format($firstRent - $firstRent / 1.09, 2),
+        '租赁期限为' => ['36' => $leaseMonths],
+        '自2025年12月28日起至2028年12月27日止' => [
+            '2025年12月28日' => $leaseStart,
+            '2028年12月27日' => $leaseEnd,
+        ],
+        '自2025年12月28日起至2026年2月27日' => [
+            '2025年12月28日' => $fitoutStart1,
+            '2026年2月27日' => $fitoutEnd1,
+        ],
+        '自2026年12月28日起至2027年1月27日' => [
+            '2026年12月28日' => $fitoutStart2,
+            '2027年1月27日' => $fitoutEnd2,
+        ],
+        '交付标的房屋' => ['2025年12月27日' => $deliveryDate],
+        '自2025年12月28日起至2027年12月27日止的租金为人民币:11680元/月' => [
+            '2025年12月28日' => $rentPeriod1Start,
+            '2027年12月27日' => $rentPeriod1End,
+            '11680' => (int)$monthlyRent1,
+        ],
+        '自2027年12月28日起至2028年12月27日止的租金为人民币:12264元/月' => [
+            '2027年12月28日' => $rentPeriod2Start,
+            '2028年12月27日' => $rentPeriod2End,
+            '12264' => (int)$monthlyRent2,
+        ],
+        '首期房屋租金' => [
+            '叁万伍仟零肆拾元整' => contract_money_upper($firstRent),
+            '35040.00' => contract_money($firstRent),
+        ],
+        '支付保证金' => [
+            '叁万伍仟零肆拾元整' => contract_money_upper($deposit),
+            '35040.00' => contract_money($deposit),
+        ],
+        '物业管理费金额为' => ['2880' => (int)$propertyFee],
+        '该房屋计租面积为' => ['240' => $area],
+        '出租方联络地址' => ['上海市宝山区罗店路388弄MAX科技园' => contract_value($input, 'lessorNoticeAddress', '上海市宝山区罗店路388弄MAX科技园')],
+        '承租方联络地址' => ['上海市宝山区罗店路388弄33号B座706室' => $noticeAddress],
+        '联系人：【葛英林】' => [
+            '021-56590771' => contract_value($input, 'lessorPhone', '021-56590771'),
+            '葛英林' => contract_value($input, 'lessorContact', '葛英林')
+        ],
+        '联系人：【杨应新】' => [
+            '13918141990' => contract_value($input, 'tenantPhone', '13918141990'),
+            '杨应新' => $contactPerson
+        ],
+        '应向国家缴纳税款' => ['1250' => $taxPerSqm],
+        '首期租金及首期物业费' => [
+            '2025年12月5日' => contract_cn_date(contract_value($input, 'firstPayDate', date('Y-m-d')), '2025年12月5日'),
+        ],
     ];
 
     $safeName = preg_replace('/[^\\p{Han}A-Za-z0-9_-]+/u', '', $tenantName) ?: '承租方';

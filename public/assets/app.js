@@ -176,7 +176,6 @@ const demoScenario = {
     depositPayDate: '2026-05-22',
     noticeAddress: '上海市宝山区罗店路388弄33号B座706室',
     taxPerSqm: '1250',
-    floorPlanNote: '平面图',
     riskChecks: ['面积前后一致', '价格口径一致', '免租期写清楚', '付款日期明确', '特殊条款需审批', '开票信息完整'],
   },
   dashboard: {
@@ -228,9 +227,7 @@ function fieldHtml(field) {
       ['legalRepresentative', '法定代表人', 'text', '例：陈星澜'],
       ['tenantPhone', '联系电话', 'text', '例：13800000000'],
       ['contactPerson', '联系人', 'text', '默认同法定代表人'],
-      ['signYear', '签约年份', 'number', '例：2026'],
-      ['signMonth', '签约月份', 'number', '留空，正式签约时填写'],
-      ['signDay', '签约日期', 'number', '留空，正式签约时填写'],
+
       ['propertyAddress', '标的房屋地址', 'text', '例：上海市宝山区罗店路388弄33号B座706室'],
       ['roomCode', '房号', 'text', '例：B座706室'],
       ['area', '计租面积/㎡', 'number', '例：240'],
@@ -251,6 +248,7 @@ function fieldHtml(field) {
       ['firstRent', '首期租金/元', 'number', '例：35040'],
       ['depositMonths', '押金/月数', 'select', ''],
       ['deposit', '保证金/元', 'number', '例：35040'],
+      ['paymentCycle', '付款周期', 'select', ''],
       ['firstPayDate', '首期应缴日期', 'date', ''],
       ['depositPayDate', '保证金应缴日期', 'date', ''],
       ['noticeAddress', '承租方通知地址', 'text', '默认同房屋地址'],
@@ -267,6 +265,8 @@ function fieldHtml(field) {
         ['1,0,0', '1,0,0'],
         ['2,1,0', '2,1,0'],
         ['2,2,1', '2,2,1'],
+        ['3,0,0', '3,0,0'],
+        ['3,2,1', '3,2,1'],
         ['3,2,1', '3,2,1'],
       ],
       firstRentMonths: [
@@ -280,6 +280,13 @@ function fieldHtml(field) {
         ['2', '2个月'],
         ['3', '3个月'],
         ['4', '4个月'],
+      ],
+      paymentCycle: [
+        ['1', '1个月'],
+        ['2', '2个月'],
+        ['3', '季付'],
+        ['6', '半年付'],
+        ['12', '年付'],
       ],
     };
     return `
@@ -307,10 +314,6 @@ function fieldHtml(field) {
           <button id="contractPreviewBtn" class="secondary-btn" type="button">预览关键数字</button>
           <span id="contractStatus" class="muted-text">先预览关键数字，确认无误后在右侧生成合同。</span>
         </div>
-        <label class="field-block">
-          <span>平面图备注</span>
-          <textarea data-key="floorPlanNote" data-type="textarea">平面图</textarea>
-        </label>
       </div>
     `;
   }
@@ -571,12 +574,12 @@ function updateContractAutoFields(source = null) {
 }
 
 function wireContractBuilder() {
-  const currentYear = String(new Date().getFullYear());
-  if (!getContractValue('signYear')) setContractValue('signYear', currentYear);
+  // signYear removed
   setContractValue('leaseMonths', '36');
   setContractValue('fitoutPattern', '2,1,0');
   setContractValue('firstRentMonths', '3');
   setContractValue('depositMonths', '3');
+  setContractValue('paymentCycle', '3');
   fields.querySelectorAll('[data-key]').forEach((node) => {
     if (node.dataset.key === 'contactPerson' || node.dataset.key === 'noticeAddress') {
       node.addEventListener('input', () => { node.dataset.autoFilled = 'false'; });
@@ -1012,35 +1015,78 @@ async function generateContractDocx() {
   }
 }
 
-function previewContractSummary() {
+async function previewContractSummary() {
   updateContractAutoFields();
   const payload = collectPayload();
   const data = payload.inputs;
-  const summary = [
-    ['承租方', data.tenantName],
-    ['房屋地址', data.propertyAddress],
-    ['计租面积', `${data.area || '-'} ㎡`],
-    ['租期', `${data.leaseStart || '-'} 至 ${data.leaseEnd || '-'}（${data.leaseMonths || '-'}个月）`],
-    ['交付日期', data.deliveryDate],
-    ['装修期', `${data.fitoutPattern || '-'}；${data.fitoutStart1 || '-'} 至 ${data.fitoutEnd1 || '-'}；${data.fitoutStart2 || '-'} 至 ${data.fitoutEnd2 || '-'}`],
-    ['首期/保证金应缴日期', `${data.firstPayDate || '-'} / ${data.depositPayDate || '-'}`],
-    ['月租金', `${money(data.monthlyRent1)} 元；递增后 ${money(data.monthlyRent2)} 元`],
-    ['物业费', `${money(data.propertyFee)} 元/月`],
-    ['首期租金', `${money(data.firstRent)} 元（${data.firstRentMonths || '-'}个月）`],
-    ['保证金', `${money(data.deposit)} 元（${data.depositMonths || '-'}个月）`],
-  ];
-  resultBox.dataset.raw = summary.map(([label, value]) => `${label}: ${value}`).join('\n');
-  resultBox.innerHTML = `
-    <h3>合同关键数字预览</h3>
-    <table class="excel-table output-table">
-      <tbody>
-        ${summary.map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value)}</td></tr>`).join('')}
-      </tbody>
-    </table>
-    <p>请核对左侧字段和上方关键数字。确认无误后生成公司制式合同。</p>
-    <button id="contractDownloadBtn" class="primary-btn" type="button">生成合同下载</button>
-  `;
-  document.querySelector('#contractDownloadBtn')?.addEventListener('click', generateContractDocx);
+  
+  resultBox.innerHTML = '<p>正在生成关键数字与租金计划表预览...</p>';
+  
+  try {
+    const res = await fetch('api/contract.php?preview=1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const previewData = await res.json();
+    if (!res.ok) throw new Error(previewData.error || '获取租金明细表失败');
+    
+    const rows = previewData.rows || [];
+    const rowsHtml = rows.map(row => `<tr>
+      <td style="white-space: nowrap;">${escapeHtml(row[0])}</td>
+      <td style="padding: 8px 4px; white-space: nowrap;">${escapeHtml(row[1])}</td>
+      <td style="padding: 8px 0; color: var(--muted); text-align: center; width: 20px;">${escapeHtml(row[2])}</td>
+      <td style="padding: 8px 4px; white-space: nowrap;">${escapeHtml(row[3])}</td>
+      <td>${escapeHtml(row[4])}</td>
+    </tr>`).join('');
+
+    const summary = [
+      ['承租方', data.tenantName],
+      ['房屋地址', data.propertyAddress],
+      ['计租面积', `${data.area || '-'} ㎡`],
+      ['租期', `${data.leaseStart || '-'} 至 ${data.leaseEnd || '-'}（${data.leaseMonths || '-'}个月）`],
+      ['交付日期', data.deliveryDate],
+      ['装修期', `${data.fitoutPattern || '-'}；${data.fitoutStart1 || '-'} 至 ${data.fitoutEnd1 || '-'}；${data.fitoutStart2 || '-'} 至 ${data.fitoutEnd2 || '-'}`],
+      ['首期/保证金应缴日期', `${data.firstPayDate || '-'} / ${data.depositPayDate || '-'}`],
+      ['月租金', `${money(data.monthlyRent1)} 元；递增后 ${money(data.monthlyRent2)} 元`],
+      ['物业费', `${money(data.propertyFee)} 元/月`],
+      ['首期租金', `${money(data.firstRent)} 元（${data.firstRentMonths || '-'}个月）`],
+      ['保证金', `${money(data.deposit)} 元（${data.depositMonths || '-'}个月）`],
+      ['后续付款周期', `${data.paymentCycle || '-'}个月`],
+      ['纳税承诺/元每㎡', data.taxPerSqm || '-'],
+    ];
+    resultBox.dataset.raw = summary.map(([label, value]) => `${label}: ${value}`).join('\n');
+    resultBox.innerHTML = `
+      <h3>合同关键数字预览</h3>
+      <table class="excel-table output-table">
+        <tbody>
+          ${summary.map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value)}</td></tr>`).join('')}
+        </tbody>
+      </table>
+      
+      <h4>租金计划表明细预览</h4>
+      <div style="overflow-x: auto;">
+        <table class="excel-table output-table" style="min-width: 480px;">
+          <thead>
+            <tr>
+              <th>应缴日期</th>
+              <th colspan="3" style="text-align: center;">租期</th>
+              <th>应缴金额</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <p style="margin-top: 1rem;">请核对左侧字段和上方关键数字及租金明细。确认无误后生成公司制式合同。</p>
+      <button id="contractDownloadBtn" class="primary-btn" type="button">生成合同下载</button>
+    `;
+    document.querySelector('#contractDownloadBtn')?.addEventListener('click', generateContractDocx);
+  } catch (error) {
+    resultBox.innerHTML = `<p class="form-error">${escapeHtml(error.message)}</p>`;
+  }
 }
 
 nav.addEventListener('click', (event) => {

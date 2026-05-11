@@ -35,6 +35,11 @@ if (!is_array($input)) {
     json_response(['error' => '合同参数格式不正确。'], 422);
 }
 
+if (isset($_GET['preview'])) {
+    $rows = contract_rent_rows($input);
+    json_response(['rows' => $rows]);
+}
+
 try {
     $result = generate_contract_docx($input);
 } catch (Throwable $error) {
