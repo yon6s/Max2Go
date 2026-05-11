@@ -13,7 +13,7 @@ if (!verify_csrf($payload['csrf'] ?? null)) {
 }
 
 $stage = (string)($payload['stage'] ?? '');
-$allowedStages = ['lead', 'space', 'pricing', 'recap', 'proposal', 'negotiation', 'contract', 'dashboard'];
+$allowedStages = ['tour', 'objection', 'pricing', 'recap', 'contract', 'floorplan'];
 if (!in_array($stage, $allowedStages, true)) {
     json_response(['error' => '未知模块，请刷新页面后重试。'], 400);
 }

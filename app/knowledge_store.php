@@ -130,7 +130,7 @@ SQL);
         'type' => '竞品说辞',
         'title' => $title,
         'content' => $content,
-        'stages' => 'lead,appointment,space,proposal,negotiation,dashboard',
+        'stages' => 'tour,objection,recap',
         'priority' => 1,
     ]);
 

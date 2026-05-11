@@ -1,26 +1,22 @@
 const stages = [
   {
-    id: 'lead',
-    title: '1. 线索与约访',
-    desc: '把客户画像、线索评分、需求采集和约访推进合并成一个前端动作。',
+    id: 'tour',
+    title: '1. 带看实战包 (破冰与推盘)',
+    desc: '根据客户画像快速输出主推房源、破冰话术和竞品防坑提示。',
     fields: [
-      { type: 'checkbox', key: 'industry', label: '客户行业', options: ['科技研发', '电商运营', '设计创意', '区域总部', '轻生产配套', '传统办公'] },
-      { type: 'checkbox', key: 'signals', label: '成交信号', options: ['需求面积明确', '预算接近项目价格', '入驻时间3个月内', '决策人可到场', '已有竞品对比', '关注园区形象'] },
-      { type: 'checkbox', key: 'needs', label: '已确认需求', options: ['人数规模', '装修要求', '预算范围', '交通要求', '停车需求', '政策关注', '交付时间', '决策链'] },
-      { type: 'select', key: 'source', label: '线索来源', options: ['老客户转介绍', '平台招商', '主动电销', '上门咨询', '中介渠道', '活动获客'] },
-      { type: 'select', key: 'urgency', label: '推进紧急度', options: ['本周必须看房', '两周内看房', '一个月内比较', '只是初步了解'] },
-      { type: 'textarea', key: 'notes', label: '客户原话/补充信息', placeholder: '例：客户目前在周边园区，团队扩张，需要400㎡左右，本周希望看房。' },
+      { type: 'checkbox', key: 'signals', label: '客户画像', options: ['需求面积明确', '预算接近底价', '急用且带决策人', '比较过周边竞品', '极度在意成本', '非常看重形象'] },
+      { type: 'select', key: 'competitor', label: '竞品倾向', options: ['未提及', '中集美兰城', '闵虹·之所智慧方洲', '国盛药谷', '周边其他低价厂房'] },
+      { type: 'textarea', key: 'notes', label: '客户原话/特别关注', placeholder: '例：客户带了财务来，感觉一直在算单价，但也提到想有个体面的前台。' },
     ],
   },
   {
-    id: 'space',
-    title: '2. 房源匹配与分割建议',
-    desc: '根据面积、方位、行业和预算，输出可沟通的分割方向与带看顺序。',
+    id: 'objection',
+    title: '2. 异议处理与逼定',
+    desc: '针对后期的价格拉扯、竞品对比，生成实战答复话术和向上要政策的理由。',
     fields: [
-      { type: 'checkbox', key: 'orientation', label: '客户偏好', options: ['靠电梯厅', '采光优先', '独立入口', '靠园区主干道', '安静区域', '可扩租'] },
-      { type: 'checkbox', key: 'layout', label: '空间配置', options: ['开放办公区', '独立办公室', '会议室', '前台展示区', '茶水间', '库房/样品间'] },
-      { type: 'select', key: 'floorPlate', label: '楼层条件', options: ['整层约2000㎡可分割', '低区楼层', '中高区楼层', '临近已出租区域', '交付状态待确认'] },
-      { type: 'textarea', key: 'drawingNotes', label: '图纸/房源备注', placeholder: '例：客户希望300㎡左右，尽量靠东侧采光面，团队约35人。' },
+      { type: 'checkbox', key: 'objections', label: '核心卡点', options: ['嫌租金单价贵', '想要长免租期', '觉得物业费高', '嫌停车费贵', '对交付时间有疑虑', '还要回去请示老板'] },
+      { type: 'select', key: 'strategy', label: '我方推进策略', options: ['用交付快打他', '用形象好打他', '用综合成本(物业空调)打他', '愿意让步换今天定'] },
+      { type: 'textarea', key: 'bottomLine', label: '业务员心里话', placeholder: '例：其实我可以给他多一个月免租，但我想先稳住单价。' },
     ],
   },
   {
@@ -41,30 +37,8 @@ const stages = [
     ],
   },
   {
-    id: 'proposal',
-    title: '5. 客户方案生成',
-    desc: '生成客户版空间方案、商务条件和PPT大纲，方便快速跟进。',
-    fields: [
-      { type: 'checkbox', key: 'planTypes', label: '方案类型', options: ['成本优先方案', '形象优先方案', '扩展弹性方案', '快速入驻方案'] },
-      { type: 'checkbox', key: 'commercial', label: '商务条件', options: ['租金单价', '物业费', '免租期', '押金', '付款周期', '递增方式', '装修支持'] },
-      { type: 'checkbox', key: 'comparison', label: '方案增强', options: ['加入综合使用成本对比', '加入竞品适配度对比', '加入交付时间表', '加入扩租路径'] },
-      { type: 'textarea', key: 'proposalNotes', label: '方案备注', placeholder: '例：客户希望总成本可控，但老板比较重视接待形象。' },
-    ],
-  },
-  {
-    id: 'negotiation',
-    title: '6. 谈判话术助手',
-    desc: '选择客户异议，生成回应话术、条件交换和底线提醒。',
-    fields: [
-      { type: 'checkbox', key: 'objections', label: '客户异议', options: ['价格高', '免租期短', '付款周期压力大', '竞品更便宜', '装修成本高', '签约周期不确定', '面积不完全合适'] },
-      { type: 'select', key: 'competitor', label: '客户提到的竞品', options: ['未提竞品', '中集美兰城', '地产闵虹·之所智慧方洲', '国盛药谷', '其他'] },
-      { type: 'select', key: 'strategy', label: '谈判策略', options: ['稳住价格换条件', '小幅让利换快签', '延长租期换优惠', '付款周期换总价', '上报特批'] },
-      { type: 'textarea', key: 'bottomLine', label: '底线/审批备注', placeholder: '例：单价不可低于某底线，免租期超过标准需审批。' },
-    ],
-  },
-  {
     id: 'contract',
-    title: '7. 合同草案助手',
+    title: '5. 合同草案助手',
     desc: '录入承租方、房源、租期和商务条件，生成合同字段清单，也可以基于标准模板生成可下载合同。',
     fields: [
       { type: 'contractBuilder' },
@@ -72,15 +46,17 @@ const stages = [
     ],
   },
   {
-    id: 'dashboard',
-    title: '8. 管理看板与复盘沉淀',
-    desc: '把单个客户推进动作沉淀为部门管理视角，方便比赛展示经营价值。',
+    id: 'floorplan',
+    title: '6. AI 室内平面设计',
+    desc: '输入空间排布要求，AI产出文字版空间规划建议。下方也可直接前往第三方工具生成渲染图。',
     fields: [
-      { type: 'checkbox', key: 'metrics', label: '看板指标', options: ['新增线索', '到访客户', '报价客户', '高意向客户', '待签约客户', '丢单原因', '房源热度', '竞品出现频率', '输赢点复盘'] },
-      { type: 'textarea', key: 'reviewNotes', label: '复盘备注', placeholder: '例：本周客户主要卡在预算和装修期，需要准备标准回应。' },
+      { type: 'checkbox', key: 'requirements', label: '空间排布重点', options: ['最大化员工工位', '老板办公室要气派', '需要多个封闭会议室', '前台展示要宽敞', '休闲茶水间不可少'] },
+      { type: 'textarea', key: 'floorplanNotes', label: '特殊说明', placeholder: '例：客户想要开放式办公，靠窗位置留给工位，中间做共享长桌。' },
+      { type: 'iframe', key: 'coohom', url: 'https://www.kujiale.com/', label: '🚀 立刻前往 酷家乐 (Coohom) 生成3D效果图' }
     ],
   },
 ];
+
 
 const demoScenario = {
   customer: {
@@ -89,19 +65,10 @@ const demoScenario = {
     budget: '希望控制总成本，单价可谈',
     moveIn: '2026年6月中旬前',
   },
-  lead: {
-    industry: ['科技研发'],
-    signals: ['需求面积明确', '入驻时间3个月内', '决策人可到场', '已有竞品对比', '关注园区形象'],
-    needs: ['人数规模', '装修要求', '预算范围', '交通要求', '停车需求', '交付时间', '决策链'],
-    source: '老客户转介绍',
-    urgency: '本周必须看房',
-    notes: '客户目前在周边园区，团队从28人扩张到45人，需要更好的研发办公形象。已看过一个竞品园区，觉得价格略低但楼栋形象一般。',
-  },
-  space: {
-    orientation: ['采光优先', '独立入口', '可扩租'],
-    layout: ['开放办公区', '独立办公室', '会议室', '前台展示区', '茶水间'],
-    floorPlate: '整层约2000㎡可分割',
-    drawingNotes: '整层约2000㎡，客户适合从东南侧采光面切出约420㎡。建议保留靠近电梯厅的展示面，后续旁边预留约150㎡扩租弹性。',
+  tour: {
+    signals: ['需求面积明确', '急用且带决策人', '比较过周边竞品'],
+    competitor: '中集美兰城',
+    notes: '客户带了财务来，感觉一直在算单价，但也提到想有个体面的前台。团队大约40人。',
   },
   pricing: {
     approvedArea: '76',
@@ -124,17 +91,10 @@ const demoScenario = {
     observations: ['拍照较多', '询问价格细节', '关注装修期', '询问停车', '对竞品有比较', '对园区形象认可'],
     transcript: '客户到访后表示：这个楼栋形象比之前看的竞品好，采光也不错。主要担心两个点：第一是价格能不能再优化，第二是装修和交付时间能不能赶上6月。客户老板比较关注前台形象和会议室数量，财务负责人会看付款周期。',
   },
-  proposal: {
-    planTypes: ['成本优先方案', '形象优先方案', '扩展弹性方案'],
-    commercial: ['租金单价', '物业费', '免租期', '押金', '付款周期', '装修支持'],
-    comparison: ['加入综合使用成本对比', '加入竞品适配度对比', '加入交付时间表'],
-    proposalNotes: '建议给客户三版：380㎡成本控制版、420㎡形象均衡版、500㎡扩展弹性版。重点强调采光、前台展示面、快速交付和后续扩租。',
-  },
-  negotiation: {
-    objections: ['价格高', '免租期短', '付款周期压力大', '竞品更便宜', '装修成本高'],
-    competitor: '中集美兰城',
-    strategy: '小幅让利换快签',
-    bottomLine: '价格不能直接打到底。可用较快签约、两年期以上、付款周期稳定来换取适度优惠；超过标准免租期需上报审批。',
+  objection: {
+    objections: ['嫌租金单价贵', '还要回去请示老板'],
+    strategy: '用综合成本(物业空调)打他',
+    bottomLine: '我可以去跟总监申请多半个月免租期，但单价必须咬住在2.3以上。',
   },
   contract: {
     tenantName: '星澜智能科技有限公司',
@@ -178,9 +138,9 @@ const demoScenario = {
     taxPerSqm: '1250',
     riskChecks: ['面积前后一致', '价格口径一致', '免租期写清楚', '付款日期明确', '特殊条款需审批', '开票信息完整'],
   },
-  dashboard: {
-    metrics: ['新增线索', '到访客户', '报价客户', '高意向客户', '待签约客户', '丢单原因', '房源热度', '竞品出现频率', '输赢点复盘'],
-    reviewNotes: '本周科技研发类客户关注点集中在总成本、装修交付、停车和园区形象。建议把400-500㎡可快速交付房源做成标准推荐包，并沉淀价格异议回应话术。',
+  floorplan: {
+    requirements: ['最大化员工工位', '需要多个封闭会议室', '前台展示要宽敞'],
+    floorplanNotes: '客户大约有40个工位需求，希望沿窗布置；老板办公室不需要太大，但会议室要有两个（一个10人，一个4人）。',
   },
 };
 
@@ -357,6 +317,14 @@ function fieldHtml(field) {
           <strong>J回正表已调用</strong>
           <span>来自你上传的Excel：破底率 0% 至 -50%，对应 J回正约 8.26 年至 14.24 年。</span>
         </div>
+      </div>
+    `;
+  }
+  if (field.type === 'iframe') {
+    return `
+      <div class="field-block wide" style="margin-top: 1rem; padding: 1.5rem; background: var(--bg-100); border-radius: 8px; text-align: center;">
+        <p style="margin-bottom: 1rem; color: var(--text-secondary);">${field.label}</p>
+        <a href="${field.url}" target="_blank" class="primary-btn" style="text-decoration: none; display: inline-block;">打开设计工具</a>
       </div>
     `;
   }
