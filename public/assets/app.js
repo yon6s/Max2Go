@@ -48,11 +48,12 @@ const stages = [
   {
     id: 'floorplan',
     title: '6. AI 室内平面设计',
-    desc: '输入空间排布要求，AI产出文字版空间规划建议。下方也可直接前往第三方工具生成渲染图。',
+    desc: '输入空间排布要求，AI产出文字版空间规划建议。如有平面图可在此上传预览（仅作参考）。下方可直接前往第三方工具生成可视化设计。',
     fields: [
+      { type: 'imageUploadHint' },
       { type: 'checkbox', key: 'requirements', label: '空间排布重点', options: ['最大化员工工位', '老板办公室要气派', '需要多个封闭会议室', '前台展示要宽敞', '休闲茶水间不可少'] },
-      { type: 'textarea', key: 'floorplanNotes', label: '特殊说明', placeholder: '例：客户想要开放式办公，靠窗位置留给工位，中间做共享长桌。' },
-      { type: 'iframe', key: 'coohom', url: 'https://www.kujiale.com/', label: '🚀 立刻前往 酷家乐 (Coohom) 生成3D效果图' }
+      { type: 'textarea', key: 'floorplanNotes', label: '图纸特征与特殊说明', placeholder: '例：客户想要开放式办公。图纸呈长方形，大门在正南，北侧是玻璃幕墙，承重墙集中在电梯厅周围。' },
+      { type: 'designTools' }
     ],
   },
 ];
@@ -320,11 +321,28 @@ function fieldHtml(field) {
       </div>
     `;
   }
-  if (field.type === 'iframe') {
+  if (field.type === 'imageUploadHint') {
+    return `
+      <div class="field-block wide" style="background: var(--bg-100); padding: 1rem; border-radius: 8px; border: 1px dashed var(--border);">
+        <p style="margin-top: 0; margin-bottom: 0.5rem; font-weight: 500;">📎 本地参考平面图</p>
+        <p class="muted-text" style="font-size: 0.85rem; margin-bottom: 1rem;">当前AI仅生成文字版规划建议。为了建议更准确，请确保参考图具备：<strong>1. 办公室界限 2. 门窗位置 3. 承重墙与幕墙标记</strong>。您可在此载入图片方便对照填写下方说明。</p>
+        <input type="file" id="localFloorplanUpload" accept="image/*" style="display: none;">
+        <button type="button" class="secondary-btn" onclick="document.getElementById('localFloorplanUpload').click()">选择本地平面图预览</button>
+        <div id="localFloorplanPreview" style="margin-top: 1rem; max-width: 100%; display: none;">
+          <img src="" style="max-width: 100%; border-radius: 4px; border: 1px solid var(--border);">
+        </div>
+      </div>
+    `;
+  }
+  if (field.type === 'designTools') {
     return `
       <div class="field-block wide" style="margin-top: 1rem; padding: 1.5rem; background: var(--bg-100); border-radius: 8px; text-align: center;">
-        <p style="margin-bottom: 1rem; color: var(--text-secondary);">${field.label}</p>
-        <a href="${field.url}" target="_blank" class="primary-btn" style="text-decoration: none; display: inline-block;">打开设计工具</a>
+        <p style="margin-bottom: 1rem; color: var(--text-secondary);">想要直接出3D效果图？请前往第三方专业工具：</p>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+          <a href="https://jianzhuxuezhang.com/" target="_blank" class="primary-btn" style="text-decoration: none;">🚀 建筑学长 (AI出图)</a>
+          <a href="https://www.kujiale.com/" target="_blank" class="secondary-btn" style="text-decoration: none;">酷家乐 (Coohom)</a>
+          <a href="https://www.51jianmo.com/" target="_blank" class="secondary-btn" style="text-decoration: none;">51建模网</a>
+        </div>
       </div>
     `;
   }
@@ -394,6 +412,21 @@ function renderStage() {
   }
   if (state.stage === 'contract') {
     wireContractBuilder();
+  }
+  if (state.stage === 'floorplan') {
+    const uploadInput = document.getElementById('localFloorplanUpload');
+    if (uploadInput) {
+      uploadInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+          const url = URL.createObjectURL(file);
+          const previewWrap = document.getElementById('localFloorplanPreview');
+          const img = previewWrap.querySelector('img');
+          img.src = url;
+          previewWrap.style.display = 'block';
+        }
+      });
+    }
   }
   updateScore();
 }

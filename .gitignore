@@ -19,7 +19,8 @@ app/excel_template.php
 app/templates/
 build_max2go_data.py
 data/
-docs/
+docs/*
+!docs/DEV_NOTES.md
 extract_j_table.py
 inspect_m.py
 inspect_workbook.mjs
