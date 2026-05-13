@@ -130,7 +130,7 @@ SQL);
         'type' => '竞品说辞',
         'title' => $title,
         'content' => $content,
-        'stages' => 'tour,objection,recap',
+        'stages' => 'tour,objection,recap,video',
         'priority' => 1,
     ]);
 

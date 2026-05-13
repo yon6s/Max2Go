@@ -30,10 +30,14 @@ const stages = [
   {
     id: 'recap',
     title: '4. 到访录音复盘',
-    desc: '粘贴录音转文字或带看纪要，提取关注点、异议、意向等级和下一步动作。',
+    desc: '粘贴或上传录音转文字文本，提取客户关注点、异议、意向等级、下一步动作和跟进微信。',
     fields: [
       { type: 'checkbox', key: 'observations', label: '现场表现', options: ['拍照较多', '询问价格细节', '关注装修期', '询问停车', '老板未到场', '对竞品有比较', '对园区形象认可'] },
-      { type: 'textarea', key: 'transcript', label: '录音转文字/带看纪要', placeholder: '粘贴客户现场沟通内容，AI会做复盘摘要。' },
+      { type: 'select', key: 'visitorRole', label: '到访角色', options: ['未确认', '老板/决策人', '财务负责人', '行政/经办人', '代理/中介', '多人到访'] },
+      { type: 'select', key: 'dealStage', label: '推进阶段', options: ['初次到访', '二次到访', '比价阶段', '准备报价', '等老板拍板', '准备合同'] },
+      { type: 'select', key: 'recapFocus', label: '复盘重点', options: ['综合判断', '意向等级', '价格异议', '下一步逼单', '微信跟进话术'] },
+      { type: 'transcriptUpload' },
+      { type: 'textarea', key: 'transcript', label: '录音转文字内容/客户原话/带看纪要', placeholder: '可直接粘贴转文字平台输出的文本。建议保留客户原话、价格/交付/面积等关键问答，不必粘贴整段无关寒暄。' },
     ],
   },
   {
@@ -54,6 +58,16 @@ const stages = [
       { type: 'checkbox', key: 'requirements', label: '空间排布重点', options: ['最大化员工工位', '老板办公室要气派', '需要多个封闭会议室', '前台展示要宽敞', '休闲茶水间不可少'] },
       { type: 'textarea', key: 'floorplanNotes', label: '图纸特征与特殊说明', placeholder: '例：客户想要开放式办公。图纸呈长方形，大门在正南，北侧是玻璃幕墙，承重墙集中在电梯厅周围。' },
       { type: 'designTools' }
+    ],
+  },
+  {
+    id: 'video',
+    title: '7. 短视频获客助手',
+    desc: '一键生成引流脚本、诊断播放数据、高情商回复评论，助力短视频获客转化。',
+    fields: [
+      { type: 'select', key: 'videoAction', label: '核心诉求', options: ['未发布：求爆款脚本', '已发布：播放惨淡求诊断', '已发布：播放不错但无留资', '评论区：求高情商回复'] },
+      { type: 'checkbox', key: 'videoTarget', label: '目标受众/房源特征', options: ['强调极致低价', '豪华装修拎包入住', '交通地铁便利', '适合科技研发', '老板换租看重面子'] },
+      { type: 'textarea', key: 'videoInput', label: '数据反馈或评论粘贴', placeholder: '例1：完播率低，点赞只有2个，如何改进？\n例2：客户评论“你们那这么远，每天通勤要死人”，怎么回？' },
     ],
   },
 ];
@@ -90,7 +104,10 @@ const demoScenario = {
   },
   recap: {
     observations: ['拍照较多', '询问价格细节', '关注装修期', '询问停车', '对竞品有比较', '对园区形象认可'],
-    transcript: '客户到访后表示：这个楼栋形象比之前看的竞品好，采光也不错。主要担心两个点：第一是价格能不能再优化，第二是装修和交付时间能不能赶上6月。客户老板比较关注前台形象和会议室数量，财务负责人会看付款周期。',
+    visitorRole: '多人到访',
+    dealStage: '比价阶段',
+    recapFocus: '综合判断',
+    transcript: '客户：这个楼栋形象比之前看的竞品好，采光也不错。我们老板比较关注前台形象和会议室数量，财务这边会看付款周期。\n业务员：您现在主要担心哪几个点？\n客户：第一是价格能不能再优化，第二是装修和交付时间能不能赶上6月。如果这两个能解决，我们可以再约老板过来定一下最终面积。',
   },
   objection: {
     objections: ['嫌租金单价贵', '还要回去请示老板'],
@@ -142,6 +159,11 @@ const demoScenario = {
   floorplan: {
     requirements: ['最大化员工工位', '需要多个封闭会议室', '前台展示要宽敞'],
     floorplanNotes: '客户大约有40个工位需求，希望沿窗布置；老板办公室不需要太大，但会议室要有两个（一个10人，一个4人）。',
+  },
+  video: {
+    videoAction: '已发布：播放不错但无留资',
+    videoTarget: ['豪华装修拎包入住', '适合科技研发'],
+    videoInput: '视频发出去有5000多播放，转发也有30个，但后台私信就是没人问价，评论区有人说“看起来是不错，但我们小公司租不起”。',
   },
 };
 
@@ -346,6 +368,18 @@ function fieldHtml(field) {
       </div>
     `;
   }
+  if (field.type === 'transcriptUpload') {
+    return `
+      <div class="field-block wide">
+        <span>上传录音文本</span>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <input type="file" id="recapTranscriptUpload" accept=".txt,.md,.srt,.vtt,text/plain,text/markdown" style="display: none;">
+          <button type="button" class="secondary-btn" id="recapTranscriptUploadBtn">选择转文字文本</button>
+          <span id="recapUploadStatus" class="muted-text">支持 txt、md、srt、vtt；音频请先用转文字工具导出文本。</span>
+        </div>
+      </div>
+    `;
+  }
   if (field.type === 'checkbox') {
     return `
       <fieldset class="field-block" data-key="${field.key}" data-type="checkbox">
@@ -428,7 +462,36 @@ function renderStage() {
       });
     }
   }
+  if (state.stage === 'recap') {
+    wireRecapTranscriptUpload();
+  }
   updateScore();
+}
+
+function wireRecapTranscriptUpload() {
+  const uploadInput = document.querySelector('#recapTranscriptUpload');
+  const uploadBtn = document.querySelector('#recapTranscriptUploadBtn');
+  const status = document.querySelector('#recapUploadStatus');
+  const transcript = fields.querySelector('[data-key="transcript"]');
+  if (!uploadInput || !uploadBtn || !transcript) return;
+  uploadBtn.addEventListener('click', () => uploadInput.click());
+  uploadInput.addEventListener('change', () => {
+    const file = uploadInput.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '').trim();
+      const current = transcript.value.trim();
+      transcript.value = current ? `${current}\n\n--- 上传文本：${file.name} ---\n${text}` : text;
+      transcript.dispatchEvent(new Event('input', { bubbles: true }));
+      if (status) status.textContent = `已载入：${file.name}`;
+      uploadInput.value = '';
+    };
+    reader.onerror = () => {
+      if (status) status.textContent = '读取失败，请复制文本后直接粘贴。';
+    };
+    reader.readAsText(file, 'UTF-8');
+  });
 }
 
 function setPricingValue(key, value) {
