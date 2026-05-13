@@ -17,10 +17,10 @@ function ai_provider_configs(): array
             'model' => (string)app_config('qwen_model', 'qwen-plus'),
         ],
         'demo' => [
-            'label' => '演示结果',
+            'label' => '脱机演示模式',
             'api_key' => 'local-demo',
             'base_url' => '',
-            'model' => '本地演示',
+            'model' => '内置离线数据',
         ],
     ];
 }

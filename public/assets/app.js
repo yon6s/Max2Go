@@ -188,7 +188,7 @@ function renderProviderSelect() {
   const select = document.querySelector('#providerSelect');
   if (!select) return;
   select.innerHTML = Object.entries(aiMeta.providers || {}).map(([key, provider]) => {
-    const status = key === 'demo' ? '本地兜底' : (provider.configured ? provider.model : `${provider.model} / 演示`);
+    const status = key === 'demo' ? '安全断网' : (provider.configured ? provider.model : `${provider.model} / 演示`);
     return `<option value="${escapeHtml(key)}">${escapeHtml(provider.label)} · ${escapeHtml(status)}</option>`;
   }).join('');
   select.value = aiMeta.active || 'deepseek';
@@ -435,8 +435,14 @@ function renderStage() {
   if (generateBtn) {
     generateBtn.hidden = state.stage === 'contract';
   }
-  if (resultKicker) resultKicker.textContent = state.stage === 'contract' ? '合同输出' : 'AI输出';
-  if (resultTitle) resultTitle.textContent = state.stage === 'contract' ? '合同文件' : '客户推进建议';
+  if (resultKicker) resultKicker.textContent = state.stage === 'contract' ? '合同输出' : 'AI输出画布';
+  if (resultTitle) {
+    if (state.stage === 'contract') resultTitle.textContent = '合同文件';
+    else if (state.stage === 'video') resultTitle.textContent = '短视频诊断与转化脚本';
+    else if (state.stage === 'floorplan') resultTitle.textContent = '平面设计优化建议';
+    else if (state.stage === 'pricing') resultTitle.textContent = '测算结果';
+    else resultTitle.textContent = '灵感与策略建议';
+  }
   if (copyBtn) copyBtn.hidden = state.stage === 'contract';
   if (state.stage === 'contract') {
     resultBox.dataset.raw = '';
