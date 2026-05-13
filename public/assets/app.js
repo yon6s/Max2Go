@@ -467,7 +467,6 @@ function renderStage() {
   if (state.stage === 'recap') {
     wireRecapTranscriptUpload();
   }
-  updateScore();
 }
 
 function wireRecapTranscriptUpload() {
@@ -661,11 +660,6 @@ function wireContractBuilder() {
   document.querySelector('#contractPreviewBtn')?.addEventListener('click', previewContractSummary);
 }
 
-function setCustomer(customer) {
-  document.querySelector('#customerName').value = customer.name;
-  document.querySelector('#customerArea').value = customer.area;
-  document.querySelector('#customerBudget').value = customer.budget;
-  document.querySelector('#customerMoveIn').value = customer.moveIn;
 }
 
 function applyStageValues(stageId) {
@@ -687,11 +681,9 @@ function applyStageValues(stageId) {
   if (stageId === 'contract') {
     updateContractAutoFields();
   }
-  updateScore();
 }
 
 function loadDemoScenario() {
-  setCustomer(demoScenario.customer);
   applyStageValues(state.stage);
   resultBox.dataset.raw = '';
   resultBox.innerHTML = state.stage === 'contract'
@@ -704,12 +696,6 @@ function collectPayload() {
   const project = {
     key: projectSelect.value,
     name: projectSelect.options[projectSelect.selectedIndex].textContent,
-  };
-  const customer = {
-    name: document.querySelector('#customerName').value,
-    area: document.querySelector('#customerArea').value,
-    budget: document.querySelector('#customerBudget').value,
-    moveIn: document.querySelector('#customerMoveIn').value,
   };
 
   const inputs = {};
@@ -724,20 +710,10 @@ function collectPayload() {
   });
 
   const provider = document.querySelector('#providerSelect')?.value || aiMeta.active || 'deepseek';
-  return { csrf, stage: state.stage, provider, project, customer, inputs };
+  return { csrf, stage: state.stage, provider, project, inputs };
 }
 
-function updateScore() {
-  if (state.stage !== 'lead') {
-    liveScore.textContent = '流程模块';
-    return;
-  }
-  const checked = fields.querySelectorAll('input:checked').length;
-  const customerFilled = ['#customerName', '#customerArea', '#customerBudget', '#customerMoveIn']
-    .filter((selector) => document.querySelector(selector).value.trim() !== '').length;
-  const score = Math.min(100, checked * 10 + customerFilled * 8);
-  liveScore.textContent = `线索评分 ${score}`;
-}
+
 
 function markdownToHtml(text) {
   return text
@@ -1178,7 +1154,6 @@ nav.addEventListener('click', (event) => {
   renderStage();
 });
 
-document.addEventListener('input', updateScore);
 document.querySelector('#generateBtn').addEventListener('click', generate);
 const stopBtn = document.querySelector('#stopBtn');
 if (stopBtn) {

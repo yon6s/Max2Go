@@ -138,7 +138,6 @@ h1 {
 }
 
 .topbar,
-.customer-strip,
 .workspace {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, .92);
@@ -205,15 +204,6 @@ h1 {
   text-decoration: none;
 }
 
-.customer-strip {
-  display: grid;
-  grid-template-columns: 1.25fr repeat(4, 1fr);
-  gap: 14px;
-  padding: 16px 20px;
-  border-top: 0;
-}
-
-.customer-strip label,
 .field-block {
   display: grid;
   gap: 8px;
@@ -224,12 +214,17 @@ h1 {
 
 .workspace {
   display: grid;
-  grid-template-columns: 260px minmax(360px, 1fr) minmax(420px, 1.1fr);
+  grid-template-columns: 240px minmax(360px, 1fr) minmax(420px, 1.2fr);
   gap: 0;
-  min-height: calc(100vh - 190px);
+  min-height: calc(100vh - 120px);
   border-top: 0;
   border-radius: 0 0 8px 8px;
   overflow: hidden;
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: #f9faf8;
 }
 
 .flow-nav {
@@ -237,8 +232,6 @@ h1 {
   align-content: start;
   gap: 6px;
   padding: 16px;
-  border-right: 1px solid var(--line);
-  background: #f9faf8;
 }
 
 .flow-item {
@@ -743,9 +736,6 @@ fieldset.field-block {
 }
 
 @media (max-width: 1100px) {
-  .customer-strip {
-    grid-template-columns: repeat(2, 1fr);
-  }
 
   .workspace {
     grid-template-columns: 220px 1fr;
@@ -783,7 +773,6 @@ fieldset.field-block {
   }
 
   .topbar,
-  .customer-strip,
   .workspace {
     display: grid;
     grid-template-columns: 1fr;

@@ -132,24 +132,9 @@ PROMPT;
 
 function demo_stage_result(string $stage, array $payload): string
 {
-    $customer = trim((string)($payload['customer']['name'] ?? '客户'));
-    $area = trim((string)($payload['customer']['area'] ?? '待确认'));
-    $budget = trim((string)($payload['customer']['budget'] ?? '待确认'));
-    $moveIn = trim((string)($payload['customer']['moveIn'] ?? '待确认'));
-
-    $base = <<<TEXT
-**客户概况**
-- 客户：{$customer}
-- 需求面积：{$area}
-- 预算：{$budget}
-- 计划入驻：{$moveIn}
-
-TEXT;
-
     $results = [
         'tour' => <<<TEXT
 ### 带看策略：直击痛点，主推高低配两套房源
-{$base}
 **评分/判断**
 - 客户意向非常明确，且带了财务，说明成本是底线，但“前台体面”是加分项。
 - 竞品（中集美兰城）价格可能较低，我们需要用“综合性价比+园区形象”来打。
@@ -198,7 +183,6 @@ TEXT,
 TEXT,
         'objection' => <<<TEXT
 ### 异议处理：咬住单价，用免租期和首付换快签
-{$base}
 **评分/判断**
 - 客户开始嫌贵、并且要“回去请示老板”，说明基本看中，但在探底线或找台阶。
 - 我方策略是用“综合成本”和“今天定”来交换让步。
@@ -251,7 +235,6 @@ TEXT,
 TEXT,
         'video' => <<<TEXT
 ### 短视频诊断：爆款潜力足，需优化留资引导
-{$base}
 **核心判断/诊断**
 - **数据表现**：播放量 5000+，转发 30+，属于园区类的“小爆款”，说明视频内容（豪华装修/科技研发场景）切中了客户的爽点，完播率和传播力都很优秀。
 - **转化卡点**：后台无私信，说明视频里**缺少行动号召 (Call to Action)**，客户看热闹多过实际需求，或者不知道怎么找你。

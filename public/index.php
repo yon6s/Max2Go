@@ -62,54 +62,36 @@ $aiMeta = ai_public_meta();
             </div>
             <div class="top-actions">
                 <label class="model-switch">
+                    <span>所属项目</span>
+                    <select id="projectSelect">
+                        <option value="meilanhu" selected>MAX科技园（上海·美兰湖）</option>
+                        <option value="general">MAX科技园（通用）</option>
+                    </select>
+                </label>
+                <label class="model-switch">
                     <span>模型接口</span>
                     <select id="providerSelect"></select>
                 </label>
-                <button id="demoBtn" class="secondary-btn" type="button">载入演示客户</button>
+                <button id="demoBtn" class="secondary-btn" type="button">载入演示配置</button>
                 <button id="knowledgeBtn" class="secondary-btn" type="button">知识库管理</button>
                 <a href="?logout=1" class="ghost-link">退出</a>
             </div>
         </header>
 
-        <section class="customer-strip">
-            <label>
-                所属项目
-                <select id="projectSelect">
-                    <option value="meilanhu" selected>MAX科技园（上海·美兰湖）</option>
-                    <option value="general">MAX科技园（通用）</option>
-                </select>
-            </label>
-            <label>
-                客户名称
-                <input id="customerName" placeholder="例：某科技研发企业">
-            </label>
-            <label>
-                需求面积
-                <input id="customerArea" placeholder="例：300-500㎡">
-            </label>
-            <label>
-                预算
-                <input id="customerBudget" placeholder="例：总价控制 / 单价上限">
-            </label>
-            <label>
-                入驻时间
-                <input id="customerMoveIn" placeholder="例：6月中旬">
-            </label>
-        </section>
-
         <main class="workspace">
-            <nav class="flow-nav" aria-label="业务流程"></nav>
+            <aside class="sidebar">
+                <nav class="flow-nav" aria-label="业务流程"></nav>
+            </aside>
             <section class="input-panel">
                 <div class="panel-heading">
                     <div>
                         <p class="step-kicker">当前模块</p>
                         <h2 id="stageTitle"></h2>
                     </div>
-                    <span id="liveScore" class="score-chip">线索评分 0</span>
                 </div>
                 <p id="stageDesc" class="stage-desc"></p>
                 <div id="stageFields" class="field-grid"></div>
-                <div style="display: flex; gap: 1rem; align-items: center;">
+                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem;">
                     <button id="generateBtn" class="primary-btn">生成AI建议</button>
                     <button id="stopBtn" class="secondary-btn" style="display: none;">停止生成</button>
                 </div>
@@ -117,8 +99,8 @@ $aiMeta = ai_public_meta();
             <section class="result-panel">
                 <div class="result-heading">
                     <div>
-                        <p class="step-kicker">AI输出</p>
-                        <h2>客户推进建议</h2>
+                        <p class="step-kicker">AI输出画布</p>
+                        <h2>灵感与策略建议</h2>
                     </div>
                     <button id="copyBtn" class="secondary-btn">复制</button>
                 </div>
