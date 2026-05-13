@@ -660,8 +660,6 @@ function wireContractBuilder() {
   document.querySelector('#contractPreviewBtn')?.addEventListener('click', previewContractSummary);
 }
 
-}
-
 function applyStageValues(stageId) {
   const values = demoScenario[stageId] || {};
   fields.querySelectorAll('[data-key]').forEach((node) => {

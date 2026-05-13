@@ -30,7 +30,7 @@ $aiMeta = ai_public_meta();
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MAX租赁AI工作台</title>
-    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="assets/styles.css?v=<?= time() ?>">
 </head>
 <body>
 <?php if (!is_logged_in()): ?>
@@ -208,8 +208,8 @@ $aiMeta = ai_public_meta();
             </div>
         </section>
     </div>
-    <script src="assets/max2go-data.js"></script>
-    <script src="assets/app.js"></script>
+    <script src="assets/max2go-data.js?v=<?= time() ?>"></script>
+    <script src="assets/app.js?v=<?= time() ?>"></script>
 <?php endif; ?>
 </body>
 </html>
