@@ -109,7 +109,10 @@ $aiMeta = ai_public_meta();
                 </div>
                 <p id="stageDesc" class="stage-desc"></p>
                 <div id="stageFields" class="field-grid"></div>
-                <button id="generateBtn" class="primary-btn">生成AI建议</button>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <button id="generateBtn" class="primary-btn">生成AI建议</button>
+                    <button id="stopBtn" class="secondary-btn" style="display: none;">停止生成</button>
+                </div>
             </section>
             <section class="result-panel">
                 <div class="result-heading">

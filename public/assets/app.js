@@ -63,11 +63,12 @@ const stages = [
   {
     id: 'video',
     title: '7. 短视频获客助手',
-    desc: '一键生成引流脚本、诊断播放数据、高情商回复评论，助力短视频获客转化。',
+    desc: '涵盖爆款脚本、同城拆解、截流回复与矩阵裂变，全链路助力短视频获客转化。',
     fields: [
-      { type: 'select', key: 'videoAction', label: '核心诉求', options: ['未发布：求爆款脚本', '已发布：播放惨淡求诊断', '已发布：播放不错但无留资', '评论区：求高情商回复'] },
-      { type: 'checkbox', key: 'videoTarget', label: '目标受众/房源特征', options: ['强调极致低价', '豪华装修拎包入住', '交通地铁便利', '适合科技研发', '老板换租看重面子'] },
-      { type: 'textarea', key: 'videoInput', label: '数据反馈或评论粘贴', placeholder: '例1：完播率低，点赞只有2个，如何改进？\n例2：客户评论“你们那这么远，每天通勤要死人”，怎么回？' },
+      { type: 'select', key: 'videoCategory', label: '视频类别', options: ['房源展示 / 带看实录', '网络热梗 / 剧情段子', '政策解读 / 行业观点', '招商日常 / 个人IP建立'] },
+      { type: 'select', key: 'videoAction', label: '核心诉求', options: ['未发布：求爆款脚本与拍摄建议', '未发布：求短内容矩阵裂变 (一鱼多吃)', '灵感：同城爆款视频对标拆解', '已发布：播放惨淡求诊断', '已发布：播放不错但无留资', '评论区：求高情商回复/同行截流词典'] },
+      { type: 'checkbox', key: 'videoTarget', label: '受众/房源特征 (房源类必选)', options: ['强调极致低价', '豪华装修拎包入住', '交通地铁便利', '适合科技研发', '老板换租看重面子'] },
+      { type: 'textarea', key: 'videoInput', label: '附加信息 / 数据反馈 / 评论粘贴', placeholder: '例1：我要拍个“房东直租VS中介”的搞笑段子\n例2：播放量500，点赞2个，如何改进？\n例3：客户评论“租不起，太贵了”，怎么回？' },
     ],
   },
 ];
@@ -161,6 +162,7 @@ const demoScenario = {
     floorplanNotes: '客户大约有40个工位需求，希望沿窗布置；老板办公室不需要太大，但会议室要有两个（一个10人，一个4人）。',
   },
   video: {
+    videoCategory: '房源展示 / 带看实录',
     videoAction: '已发布：播放不错但无留资',
     videoTarget: ['豪华装修拎包入住', '适合科技研发'],
     videoInput: '视频发出去有5000多播放，转发也有30个，但后台私信就是没人问价，评论区有人说“看起来是不错，但我们小公司租不起”。',
@@ -957,11 +959,20 @@ function closeKnowledgeModal() {
   knowledgeModal.setAttribute('aria-hidden', 'true');
 }
 
+let currentAbortController = null;
+
 async function generate() {
   const button = document.querySelector('#generateBtn');
+  const stopButton = document.querySelector('#stopBtn');
   button.disabled = true;
   button.textContent = '生成中...';
+  if (stopButton) stopButton.style.display = 'inline-block';
   resultBox.innerHTML = '<p>正在整理业务信息并生成建议。</p>';
+
+  if (currentAbortController) {
+    currentAbortController.abort();
+  }
+  currentAbortController = new AbortController();
 
   try {
     if (state.stage === 'pricing') {
@@ -972,6 +983,7 @@ async function generate() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(collectPayload()),
+      signal: currentAbortController.signal,
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '生成失败');
@@ -984,10 +996,16 @@ async function generate() {
       resultBox.innerHTML += `<p class="demo-note">由 ${escapeHtml(data.providerLabel)} / ${escapeHtml(data.model)} 生成。</p>`;
     }
   } catch (error) {
-    resultBox.textContent = error.message;
+    if (error.name === 'AbortError') {
+      resultBox.innerHTML += '<p class="demo-note" style="color: var(--text-secondary);">生成已主动停止。</p>';
+    } else {
+      resultBox.textContent = error.message;
+    }
   } finally {
     button.disabled = false;
     button.textContent = '生成AI建议';
+    if (stopButton) stopButton.style.display = 'none';
+    currentAbortController = null;
   }
 }
 
@@ -1162,6 +1180,14 @@ nav.addEventListener('click', (event) => {
 
 document.addEventListener('input', updateScore);
 document.querySelector('#generateBtn').addEventListener('click', generate);
+const stopBtn = document.querySelector('#stopBtn');
+if (stopBtn) {
+  stopBtn.addEventListener('click', () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+  });
+}
 document.querySelector('#demoBtn').addEventListener('click', loadDemoScenario);
 document.querySelector('#knowledgeBtn').addEventListener('click', openKnowledgeModal);
 document.querySelectorAll('[data-close-modal]').forEach((node) => node.addEventListener('click', closeKnowledgeModal));
