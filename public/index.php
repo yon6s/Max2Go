@@ -91,7 +91,7 @@ $aiMeta = ai_public_meta();
                 </div>
                 <p id="stageDesc" class="stage-desc"></p>
                 <div id="stageFields" class="field-grid"></div>
-                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem;">
+                <div class="generate-actions">
                     <button id="generateBtn" class="primary-btn">生成AI建议</button>
                     <button id="stopBtn" class="secondary-btn" style="display: none;">停止生成</button>
                 </div>
@@ -102,7 +102,11 @@ $aiMeta = ai_public_meta();
                         <p class="step-kicker">AI输出画布</p>
                         <h2>灵感与策略建议</h2>
                     </div>
-                    <button id="copyBtn" class="secondary-btn">复制</button>
+                    <div class="result-actions">
+                        <button id="saveRecapBtn" class="secondary-btn" type="button" hidden>保存到客户时间线</button>
+                        <button id="timelineBtn" class="secondary-btn" type="button" hidden>查看时间线</button>
+                        <button id="copyBtn" class="secondary-btn">复制</button>
+                    </div>
                 </div>
                 <article id="resultBox" class="result-box">
                     请选择左侧流程模块，填写或勾选信息后生成。支持 DeepSeek 与通义千问接口切换；未配置 API Key 时会返回本地演示结果。

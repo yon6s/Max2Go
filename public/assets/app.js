@@ -29,15 +29,21 @@ const stages = [
   },
   {
     id: 'recap',
-    title: '4. 到访录音复盘',
-    desc: '粘贴或上传录音转文字文本，提取客户关注点、异议、意向等级、下一步动作和跟进微信。',
+    title: '4. 一线记录与客户洞察',
+    desc: '沉淀录音转写、微信对话、带看备注和报价反馈，还原客户真实需求与成交/流失原因。',
     fields: [
-      { type: 'checkbox', key: 'observations', label: '现场表现', options: ['拍照较多', '询问价格细节', '关注装修期', '询问停车', '老板未到场', '对竞品有比较', '对园区形象认可'] },
-      { type: 'select', key: 'visitorRole', label: '到访角色', options: ['未确认', '老板/决策人', '财务负责人', '行政/经办人', '代理/中介', '多人到访'] },
-      { type: 'select', key: 'dealStage', label: '推进阶段', options: ['初次到访', '二次到访', '比价阶段', '准备报价', '等老板拍板', '准备合同'] },
-      { type: 'select', key: 'recapFocus', label: '复盘重点', options: ['综合判断', '意向等级', '价格异议', '下一步逼单', '微信跟进话术'] },
+      { type: 'text', key: 'customerName', label: '客户/公司名称', placeholder: '例：星澜智能科技有限公司' },
+      { type: 'select', key: 'recordType', label: '记录类型', options: ['到访录音转写', '微信对话记录', '带看现场备注', '报价后反馈', '异议处理过程', '成交/流失复盘'] },
+      { type: 'select', key: 'recordCompleteness', label: '记录完整度', options: ['原始逐字记录', '关键片段节选', '业务员整理纪要', '结果复盘补录'] },
+      { type: 'select', key: 'dealStage', label: '客户阶段', options: ['初次咨询', '初次到访', '二次到访', '比价阶段', '报价后跟进', '等老板拍板', '准备合同', '已成交', '已流失', '暂缓观望'] },
+      { type: 'select', key: 'visitorRole', label: '沟通对象', options: ['未确认', '老板/决策人', '财务负责人', '行政/经办人', '代理/中介', '多人参与'] },
+      { type: 'select', key: 'recapFocus', label: '分析重点', options: ['综合洞察', '真实需求', '汇报偏差', '成交概率', '流失风险', '价格/付款卡点', '下一步跟进'] },
+      { type: 'select', key: 'outcome', label: '当前结果', options: ['继续推进', '需要二次到访', '等待客户内部决策', '进入合同阶段', '暂缓', '流失', '已成交', '未确认'] },
+      { type: 'checkbox', key: 'observations', label: '一线动作/信号', options: ['拍照较多', '询问价格细节', '关注装修期', '询问停车', '老板未到场', '对竞品有比较', '对园区形象认可', '反复问付款方式', '微信回复变慢', '主动索要资料'] },
       { type: 'transcriptUpload' },
-      { type: 'textarea', key: 'transcript', label: '录音转文字内容/客户原话/带看纪要', placeholder: '可直接粘贴转文字平台输出的文本。建议保留客户原话、价格/交付/面积等关键问答，不必粘贴整段无关寒暄。' },
+      { type: 'textarea', key: 'salesSummary', label: '业务员主观判断/汇报口径', placeholder: '例：我判断客户主要是嫌贵，意向一般，可能还在看竞品。' },
+      { type: 'textarea', key: 'outcomeReason', label: '成交/流失/报价反馈关键说明', placeholder: '例：报价后客户说首付款压力大；或已流失给某竞品，原因是交付更快/总价更低/老板没通过。' },
+      { type: 'textarea', key: 'transcript', label: '原始一线记录', placeholder: '可粘贴录音转文字、微信对话、带看纪要、报价反馈或流失原因。建议尽量保留客户原话、追问细节和时间顺序。' },
     ],
   },
   {
@@ -104,10 +110,16 @@ const demoScenario = {
     targetJYears: '10',
   },
   recap: {
-    observations: ['拍照较多', '询问价格细节', '关注装修期', '询问停车', '对竞品有比较', '对园区形象认可'],
-    visitorRole: '多人到访',
+    customerName: '星澜智能科技有限公司',
+    recordType: '到访录音转写',
+    recordCompleteness: '原始逐字记录',
     dealStage: '比价阶段',
-    recapFocus: '综合判断',
+    visitorRole: '多人参与',
+    recapFocus: '综合洞察',
+    outcome: '继续推进',
+    observations: ['拍照较多', '询问价格细节', '关注装修期', '询问停车', '对竞品有比较', '对园区形象认可', '反复问付款方式'],
+    salesSummary: '业务员判断客户主要卡在价格，需要再争取一点优惠；客户意向中等偏上。',
+    outcomeReason: '暂无最终成交/流失结果，但客户报价后重点追问付款周期和6月交付节点。',
     transcript: '客户：这个楼栋形象比之前看的竞品好，采光也不错。我们老板比较关注前台形象和会议室数量，财务这边会看付款周期。\n业务员：您现在主要担心哪几个点？\n客户：第一是价格能不能再优化，第二是装修和交付时间能不能赶上6月。如果这两个能解决，我们可以再约老板过来定一下最终面积。',
   },
   objection: {
@@ -183,6 +195,16 @@ const knowledgeModal = document.querySelector('#knowledgeModal');
 let knowledgeMeta = null;
 let knowledgeItems = [];
 let projectItems = [];
+let latestGeneratedContent = '';
+const contractProfileKeys = ['creditCode', 'registeredAddress', 'legalRepresentative', 'tenantPhone', 'contactPerson', 'noticeAddress'];
+const contractRequiredKeys = ['tenantName', 'creditCode', 'registeredAddress', 'legalRepresentative', 'tenantPhone'];
+const contractRequiredLabels = {
+  tenantName: '承租方',
+  creditCode: '统一社会信用代码',
+  registeredAddress: '注册地址',
+  legalRepresentative: '法定代表人',
+  tenantPhone: '联系电话',
+};
 
 function renderProviderSelect() {
   const select = document.querySelector('#providerSelect');
@@ -281,13 +303,20 @@ function fieldHtml(field) {
             const control = type === 'select'
               ? `<select data-key="${key}" data-type="select">${selectOptions[key].map(([value, text]) => `<option value="${value}">${text}</option>`).join('')}</select>`
               : `<input data-key="${key}" data-type="${type}" type="${type}" step="any" placeholder="${placeholder}">`;
+            const controlHtml = key === 'tenantName'
+              ? `<div class="contract-tenant-control">${control}<button id="contractQichachaBtn" class="secondary-btn" type="button">企查查查询</button><a id="contractQichachaLink" class="secondary-btn" href="https://www.qcc.com/web/search" target="_blank" rel="noopener">打开企查查网页</a></div>`
+              : control;
             return `
-              <label class="field-block">
+              <label class="field-block ${key === 'tenantName' ? 'wide' : ''}">
                 <span>${label}</span>
-                ${control}
+                ${controlHtml}
               </label>
             `;
           }).join('')}
+        </div>
+        <div class="contract-profile-tools">
+          <button id="contractSaveProfileBtn" class="secondary-btn" type="button">保存客户档案</button>
+          <span id="contractProfileStatus" class="muted-text">输入承租方名称后，会自动匹配已保存客户档案。</span>
         </div>
         <input data-key="rentPeriod1Start" data-type="text" type="hidden">
         <input data-key="rentPeriod1End" data-type="text" type="hidden">
@@ -347,25 +376,48 @@ function fieldHtml(field) {
   }
   if (field.type === 'imageUploadHint') {
     return `
-      <div class="field-block wide" style="background: var(--bg-100); padding: 1rem; border-radius: 8px; border: 1px dashed var(--border);">
-        <p style="margin-top: 0; margin-bottom: 0.5rem; font-weight: 500;">📎 本地参考平面图</p>
-        <p class="muted-text" style="font-size: 0.85rem; margin-bottom: 1rem;">当前AI仅生成文字版规划建议。为了建议更准确，请确保参考图具备：<strong>1. 办公室界限 2. 门窗位置 3. 承重墙与幕墙标记</strong>。您可在此载入图片方便对照填写下方说明。</p>
+      <div class="floorplan-upload wide">
+        <p class="floorplan-tool-title">本地参考平面图</p>
+        <p class="muted-text">当前 AI 可先生成文字版规划建议。为了建议更准确，请确保参考图具备：办公室界限、门窗位置、承重墙与幕墙标记。您可在此载入图片方便对照填写下方说明。</p>
         <input type="file" id="localFloorplanUpload" accept="image/*" style="display: none;">
         <button type="button" class="secondary-btn" onclick="document.getElementById('localFloorplanUpload').click()">选择本地平面图预览</button>
-        <div id="localFloorplanPreview" style="margin-top: 1rem; max-width: 100%; display: none;">
-          <img src="" style="max-width: 100%; border-radius: 4px; border: 1px solid var(--border);">
+        <div id="localFloorplanPreview" class="floorplan-preview">
+          <img src="" alt="本地平面图预览">
         </div>
       </div>
     `;
   }
   if (field.type === 'designTools') {
+    const primaryToolUrl = 'http://www.jianzhuxuezhang.com/';
     return `
-      <div class="field-block wide" style="margin-top: 1rem; padding: 1.5rem; background: var(--bg-100); border-radius: 8px; text-align: center;">
-        <p style="margin-bottom: 1rem; color: var(--text-secondary);">想要直接出3D效果图？请前往第三方专业工具：</p>
-        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-          <a href="https://jianzhuxuezhang.com/" target="_blank" class="primary-btn" style="text-decoration: none;">🚀 建筑学长 (AI出图)</a>
-          <a href="https://www.kujiale.com/" target="_blank" class="secondary-btn" style="text-decoration: none;">酷家乐 (Coohom)</a>
-          <a href="https://www.51jianmo.com/" target="_blank" class="secondary-btn" style="text-decoration: none;">51建模网</a>
+      <div class="floorplan-tool wide">
+        <div class="floorplan-tool-head">
+          <div>
+            <p class="step-kicker">内嵌设计引擎</p>
+            <h3>建筑学长 AI 平面布局</h3>
+          </div>
+          <span class="status-pill">演示前请先在浏览器登录</span>
+        </div>
+        <div class="floorplan-steps" aria-label="AI平面设计流程">
+          <span>1. 在左侧整理需求</span>
+          <span>2. 打开内嵌工作区</span>
+          <span>3. 生成布局后截图或导入结果</span>
+        </div>
+        <div class="floorplan-actions">
+          <button type="button" class="primary-btn" id="openFloorplanEmbedBtn" data-url="${primaryToolUrl}">在工具台内打开</button>
+          <a href="${primaryToolUrl}" target="_blank" rel="noopener" class="secondary-btn">新窗口打开</a>
+          <a href="https://www.kujiale.com/" target="_blank" rel="noopener" class="secondary-btn">酷家乐备用</a>
+          <a href="https://www.51jianmo.com/" target="_blank" rel="noopener" class="secondary-btn">51建模网备用</a>
+        </div>
+        <div class="floorplan-embed-shell" id="floorplanEmbedShell" hidden>
+          <div class="floorplan-embed-bar">
+            <div>
+              <strong>MAX2Go 集成工作区</strong>
+              <p>如果空白或提示禁止访问，说明对方网站限制内嵌，请用“新窗口打开”。同一浏览器提前登录后，一般不会再出现登录环节。</p>
+            </div>
+            <button type="button" class="secondary-btn" id="closeFloorplanEmbedBtn">收起</button>
+          </div>
+          <iframe id="floorplanEmbed" title="建筑学长 AI 平面布局工作区" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
       </div>
     `;
@@ -373,11 +425,11 @@ function fieldHtml(field) {
   if (field.type === 'transcriptUpload') {
     return `
       <div class="field-block wide">
-        <span>上传录音文本</span>
+        <span>上传一线记录文本</span>
         <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
           <input type="file" id="recapTranscriptUpload" accept=".txt,.md,.srt,.vtt,text/plain,text/markdown" style="display: none;">
-          <button type="button" class="secondary-btn" id="recapTranscriptUploadBtn">选择转文字文本</button>
-          <span id="recapUploadStatus" class="muted-text">支持 txt、md、srt、vtt；音频请先用转文字工具导出文本。</span>
+          <button type="button" class="secondary-btn" id="recapTranscriptUploadBtn">选择记录文本</button>
+          <span id="recapUploadStatus" class="muted-text">支持 txt、md、srt、vtt；可放录音转写、微信记录或复盘纪要。</span>
         </div>
       </div>
     `;
@@ -429,6 +481,8 @@ function renderStage() {
   const resultKicker = document.querySelector('.result-panel .step-kicker');
   const resultTitle = document.querySelector('.result-panel h2');
   const copyBtn = document.querySelector('#copyBtn');
+  const saveRecapBtn = document.querySelector('#saveRecapBtn');
+  const timelineBtn = document.querySelector('#timelineBtn');
   title.textContent = stage.title;
   desc.textContent = stage.desc;
   fields.innerHTML = stage.fields.map(fieldHtml).join('');
@@ -441,9 +495,12 @@ function renderStage() {
     else if (state.stage === 'video') resultTitle.textContent = '短视频诊断与转化脚本';
     else if (state.stage === 'floorplan') resultTitle.textContent = '平面设计优化建议';
     else if (state.stage === 'pricing') resultTitle.textContent = '测算结果';
+    else if (state.stage === 'recap') resultTitle.textContent = '客户洞察与一线记录复盘';
     else resultTitle.textContent = '灵感与策略建议';
   }
   if (copyBtn) copyBtn.hidden = state.stage === 'contract';
+  if (saveRecapBtn) saveRecapBtn.hidden = state.stage !== 'recap' || latestGeneratedContent === '';
+  if (timelineBtn) timelineBtn.hidden = state.stage !== 'recap';
   if (state.stage === 'contract') {
     resultBox.dataset.raw = '';
     resultBox.innerHTML = '合同模块使用公司制式模板生成 Word 文件，不调用 AI。请填写并核对左侧字段后点击“生成合同下载”。';
@@ -469,10 +526,29 @@ function renderStage() {
         }
       });
     }
+    wireFloorplanTool();
   }
   if (state.stage === 'recap') {
     wireRecapTranscriptUpload();
+    wireRecapChangeTracking();
   }
+}
+
+function wireFloorplanTool() {
+  const openBtn = document.querySelector('#openFloorplanEmbedBtn');
+  const closeBtn = document.querySelector('#closeFloorplanEmbedBtn');
+  const shell = document.querySelector('#floorplanEmbedShell');
+  const frame = document.querySelector('#floorplanEmbed');
+  if (!openBtn || !shell || !frame) return;
+  openBtn.addEventListener('click', () => {
+    if (!frame.src) frame.src = openBtn.dataset.url || 'http://www.jianzhuxuezhang.com/';
+    shell.hidden = false;
+    openBtn.textContent = '已打开内嵌工作区';
+  });
+  closeBtn?.addEventListener('click', () => {
+    shell.hidden = true;
+    openBtn.textContent = '在工具台内打开';
+  });
 }
 
 function wireRecapTranscriptUpload() {
@@ -501,6 +577,21 @@ function wireRecapTranscriptUpload() {
   });
 }
 
+function wireRecapChangeTracking() {
+  fields.querySelectorAll('[data-key]').forEach((node) => {
+    node.addEventListener('input', () => {
+      latestGeneratedContent = '';
+      const saveRecapBtn = document.querySelector('#saveRecapBtn');
+      if (saveRecapBtn) saveRecapBtn.hidden = true;
+    });
+    node.addEventListener('change', () => {
+      latestGeneratedContent = '';
+      const saveRecapBtn = document.querySelector('#saveRecapBtn');
+      if (saveRecapBtn) saveRecapBtn.hidden = true;
+    });
+  });
+}
+
 function setPricingValue(key, value) {
   const node = fields.querySelector(`[data-key="${key}"]`);
   if (node) node.value = value ?? '';
@@ -519,6 +610,119 @@ function setContractValue(key, value) {
 function getContractValue(key) {
   const node = fields.querySelector(`[data-key="${key}"]`);
   return node ? node.value : '';
+}
+
+function setContractProfileStatus(message, isError = false) {
+  const status = document.querySelector('#contractProfileStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle('form-error', isError);
+}
+
+function updateQichachaLink() {
+  const link = document.querySelector('#contractQichachaLink');
+  if (!link) return;
+  const tenantName = getContractValue('tenantName').trim();
+  link.href = tenantName
+    ? `https://www.qcc.com/web/search?key=${encodeURIComponent(tenantName)}`
+    : 'https://www.qcc.com/web/search';
+}
+
+function applyCustomerProfile(profile) {
+  if (!profile || typeof profile !== 'object') return;
+  contractProfileKeys.forEach((key) => {
+    if (profile[key]) setContractValue(key, profile[key]);
+  });
+  const contact = fields.querySelector('[data-key="contactPerson"]');
+  const notice = fields.querySelector('[data-key="noticeAddress"]');
+  if (contact && profile.contactPerson) contact.dataset.autoFilled = 'false';
+  if (notice && profile.noticeAddress) notice.dataset.autoFilled = 'false';
+  updateContractAutoFields();
+}
+
+async function lookupCustomerProfile() {
+  const tenantName = getContractValue('tenantName').trim();
+  if (!tenantName || tenantName.length < 2) {
+    setContractProfileStatus('输入承租方名称后，会自动匹配已保存客户档案。');
+    return;
+  }
+
+  try {
+    const res = await fetch(`api/customer_profiles.php?tenantName=${encodeURIComponent(tenantName)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '客户档案匹配失败');
+    if (data.profile) {
+      applyCustomerProfile(data.profile);
+      setContractProfileStatus('已匹配本地客户档案，请核对后再生成合同。');
+    } else {
+      setContractProfileStatus('未找到本地客户档案，可核对后保存。');
+    }
+  } catch (error) {
+    setContractProfileStatus(error.message, true);
+  }
+}
+
+async function saveCustomerProfile() {
+  const button = document.querySelector('#contractSaveProfileBtn');
+  if (!button) return;
+  updateContractAutoFields();
+  button.disabled = true;
+  button.textContent = '保存中...';
+  try {
+    const res = await fetch('api/customer_profiles.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectPayload()),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '客户档案保存失败');
+    applyCustomerProfile(data.profile);
+    setContractProfileStatus('客户档案已保存，下次输入公司名称会自动带出。');
+  } catch (error) {
+    setContractProfileStatus(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = '保存客户档案';
+  }
+}
+
+async function queryQichachaProfile() {
+  const button = document.querySelector('#contractQichachaBtn');
+  if (!button) return;
+  updateContractAutoFields();
+  button.disabled = true;
+  button.textContent = '查询中...';
+  try {
+    const res = await fetch('api/qichacha_company.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectPayload()),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '企查查查询失败');
+    applyCustomerProfile(data.profile);
+    const source = data.profile?.source || {};
+    const status = source.status ? `登记状态：${source.status}。` : '';
+    setContractProfileStatus(`企查查已回填工商信息，电话仍需人工核对。${status}`);
+  } catch (error) {
+    setContractProfileStatus(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = '企查查查询';
+  }
+}
+
+function validateContractRequiredFields() {
+  const missing = contractRequiredKeys
+    .filter((key) => getContractValue(key).trim() === '')
+    .map((key) => contractRequiredLabels[key]);
+  if (missing.length === 0) return true;
+  const message = `请先补齐：${missing.join('、')}。`;
+  const status = document.querySelector('#contractStatus');
+  if (status) status.textContent = message;
+  setContractProfileStatus(message, true);
+  resultBox.innerHTML = `<p class="form-error">${escapeHtml(message)}</p>`;
+  return false;
 }
 
 function dateFromInput(value) {
@@ -663,6 +867,19 @@ function wireContractBuilder() {
   if (contact && contact.value.trim() !== '') contact.dataset.autoFilled = 'true';
   if (notice && notice.value.trim() !== '') notice.dataset.autoFilled = 'true';
   updateContractAutoFields();
+  updateQichachaLink();
+  let lookupTimer = null;
+  fields.querySelector('[data-key="tenantName"]')?.addEventListener('input', () => {
+    updateQichachaLink();
+    clearTimeout(lookupTimer);
+    lookupTimer = setTimeout(lookupCustomerProfile, 450);
+  });
+  fields.querySelector('[data-key="tenantName"]')?.addEventListener('change', () => {
+    updateQichachaLink();
+    lookupCustomerProfile();
+  });
+  document.querySelector('#contractQichachaBtn')?.addEventListener('click', queryQichachaProfile);
+  document.querySelector('#contractSaveProfileBtn')?.addEventListener('click', saveCustomerProfile);
   document.querySelector('#contractPreviewBtn')?.addEventListener('click', previewContractSummary);
 }
 
@@ -690,6 +907,9 @@ function applyStageValues(stageId) {
 function loadDemoScenario() {
   applyStageValues(state.stage);
   resultBox.dataset.raw = '';
+  latestGeneratedContent = '';
+  const saveRecapBtn = document.querySelector('#saveRecapBtn');
+  if (saveRecapBtn) saveRecapBtn.hidden = true;
   resultBox.innerHTML = state.stage === 'contract'
     ? '已载入演示客户“星澜智能科技有限公司”。请核对合同字段后点击“生成合同下载”。'
     : '已载入演示客户“星澜智能科技有限公司”。现在可以直接点击“生成AI建议”；切换其他流程模块后，再点一次“载入演示客户”会填入对应模块的示例信息。';
@@ -715,6 +935,92 @@ function collectPayload() {
 
   const provider = document.querySelector('#providerSelect')?.value || aiMeta.active || 'deepseek';
   return { csrf, stage: state.stage, provider, project, inputs };
+}
+
+function formatTimelineTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || '';
+  return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function timelineSummary(item) {
+  const chips = [
+    item.recordType,
+    item.dealStage,
+    item.outcome,
+    item.visitorRole,
+  ].filter(Boolean).map((text) => `<span class="status-pill">${escapeHtml(text)}</span>`).join('');
+  const observations = Array.isArray(item.observations) && item.observations.length
+    ? `<p><strong>一线信号：</strong>${item.observations.map(escapeHtml).join('、')}</p>`
+    : '';
+  return `
+    <article class="timeline-item">
+      <div class="timeline-item-head">
+        <strong>${escapeHtml(item.customerName || '未命名客户')}</strong>
+        <span>${escapeHtml(formatTimelineTime(item.createdAt))}</span>
+      </div>
+      <div class="timeline-tags">${chips}</div>
+      ${item.outcomeReason ? `<p><strong>关键说明：</strong>${escapeHtml(item.outcomeReason)}</p>` : ''}
+      ${item.salesSummary ? `<p><strong>业务员判断：</strong>${escapeHtml(item.salesSummary)}</p>` : ''}
+      ${observations}
+      ${item.aiExcerpt ? `<p><strong>AI洞察摘要：</strong>${escapeHtml(item.aiExcerpt)}</p>` : ''}
+      ${item.transcriptExcerpt ? `<p><strong>原始记录摘录：</strong>${escapeHtml(item.transcriptExcerpt)}</p>` : ''}
+    </article>
+  `;
+}
+
+async function saveRecapTimeline() {
+  if (state.stage !== 'recap') return;
+  const button = document.querySelector('#saveRecapBtn');
+  const payload = collectPayload();
+  const customerName = (payload.inputs.customerName || '').trim();
+  if (!customerName) {
+    resultBox.innerHTML += '<p class="form-error">请先填写客户/公司名称，再保存到客户时间线。</p>';
+    return;
+  }
+  button.disabled = true;
+  button.textContent = '保存中...';
+  try {
+    const res = await fetch('api/customer_timelines.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, aiContent: latestGeneratedContent || resultBox.dataset.raw || '' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '客户时间线保存失败');
+    resultBox.innerHTML += `<p class="demo-note">已保存到客户时间线：${escapeHtml(data.record.customerName)} / ${escapeHtml(data.record.dealStage || '未标注阶段')}</p>`;
+  } catch (error) {
+    resultBox.innerHTML += `<p class="form-error">${escapeHtml(error.message)}</p>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = '保存到客户时间线';
+  }
+}
+
+async function loadRecapTimeline() {
+  const payload = collectPayload();
+  const params = new URLSearchParams({
+    projectKey: payload.project.key || '',
+    customerName: (payload.inputs.customerName || '').trim(),
+    limit: '20',
+  });
+  resultBox.innerHTML = '<p>正在读取客户时间线。</p>';
+  try {
+    const res = await fetch(`api/customer_timelines.php?${params.toString()}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '客户时间线读取失败');
+    const scope = payload.inputs.customerName ? `“${escapeHtml(payload.inputs.customerName)}”` : '当前项目';
+    resultBox.dataset.raw = '';
+    latestGeneratedContent = '';
+    resultBox.innerHTML = `
+      <h3>客户时间线：${scope}</h3>
+      ${data.items?.length ? data.items.map(timelineSummary).join('') : '<p class="muted-text">暂无已保存记录。生成洞察后点击“保存到客户时间线”开始沉淀。</p>'}
+    `;
+    const saveRecapBtn = document.querySelector('#saveRecapBtn');
+    if (saveRecapBtn) saveRecapBtn.hidden = true;
+  } catch (error) {
+    resultBox.innerHTML = `<p class="form-error">${escapeHtml(error.message)}</p>`;
+  }
 }
 
 
@@ -944,9 +1250,12 @@ let currentAbortController = null;
 async function generate() {
   const button = document.querySelector('#generateBtn');
   const stopButton = document.querySelector('#stopBtn');
+  const saveRecapBtn = document.querySelector('#saveRecapBtn');
   button.disabled = true;
   button.textContent = '生成中...';
   if (stopButton) stopButton.style.display = 'inline-block';
+  if (saveRecapBtn) saveRecapBtn.hidden = true;
+  latestGeneratedContent = '';
   resultBox.innerHTML = '<p>正在整理业务信息并生成建议。</p>';
 
   if (currentAbortController) {
@@ -968,6 +1277,7 @@ async function generate() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '生成失败');
     resultBox.dataset.raw = data.content;
+    latestGeneratedContent = state.stage === 'recap' ? data.content : '';
     resultBox.innerHTML = markdownToHtml(data.content);
     if (data.demo) {
       const reason = data.provider === 'demo' ? '本地演示结果，不调用外部 API。' : `${escapeHtml(data.providerLabel || '模型接口')} 未配置 API Key。`;
@@ -975,6 +1285,7 @@ async function generate() {
     } else if (data.providerLabel && data.model) {
       resultBox.innerHTML += `<p class="demo-note">由 ${escapeHtml(data.providerLabel)} / ${escapeHtml(data.model)} 生成。</p>`;
     }
+    if (saveRecapBtn) saveRecapBtn.hidden = state.stage !== 'recap' || latestGeneratedContent === '';
   } catch (error) {
     if (error.name === 'AbortError') {
       resultBox.innerHTML += '<p class="demo-note" style="color: var(--text-secondary);">生成已主动停止。</p>';
@@ -1058,6 +1369,8 @@ async function calculatePricing() {
 async function generateContractDocx() {
   const button = document.querySelector('#contractDownloadBtn');
   if (!button) return;
+  updateContractAutoFields();
+  if (!validateContractRequiredFields()) return;
   button.disabled = true;
   button.textContent = '生成中...';
   try {
@@ -1079,6 +1392,7 @@ async function generateContractDocx() {
 
 async function previewContractSummary() {
   updateContractAutoFields();
+  if (!validateContractRequiredFields()) return;
   const payload = collectPayload();
   const data = payload.inputs;
   
@@ -1168,6 +1482,8 @@ if (stopBtn) {
   });
 }
 document.querySelector('#demoBtn').addEventListener('click', loadDemoScenario);
+document.querySelector('#saveRecapBtn')?.addEventListener('click', saveRecapTimeline);
+document.querySelector('#timelineBtn')?.addEventListener('click', loadRecapTimeline);
 document.querySelector('#knowledgeBtn').addEventListener('click', openKnowledgeModal);
 document.querySelectorAll('[data-close-modal]').forEach((node) => node.addEventListener('click', closeKnowledgeModal));
 document.querySelector('#knowledgeForm').addEventListener('submit', saveKnowledgeItem);

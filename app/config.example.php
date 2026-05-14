@@ -11,6 +11,8 @@ return [
     'qwen_api_key' => '',
     'qwen_base_url' => 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     'qwen_model' => 'qwen-plus',
+    'qichacha_app_key' => '',
+    'qichacha_secret_key' => '',
     'demo_mode_when_no_key' => true,
     'db_host' => '127.0.0.1',
     'db_port' => '3306',
