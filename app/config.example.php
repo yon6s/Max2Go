@@ -13,6 +13,7 @@ return [
     'qwen_model' => 'qwen-plus',
     'qichacha_app_key' => '',
     'qichacha_secret_key' => '',
+    'ai_max_tokens' => 4096,
     'demo_mode_when_no_key' => true,
     'db_host' => '127.0.0.1',
     'db_port' => '3306',

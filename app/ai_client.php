@@ -68,7 +68,7 @@ function call_ai_chat(string $providerKey, array $messages): array
         'model' => $provider['model'],
         'messages' => $messages,
         'temperature' => 0.35,
-        'max_tokens' => 1800,
+        'max_tokens' => (int)app_config('ai_max_tokens', 4096),
     ];
 
     $ch = curl_init($provider['base_url'] . '/chat/completions');
@@ -99,9 +99,15 @@ function call_ai_chat(string $providerKey, array $messages): array
         throw new RuntimeException($provider['label'] . ' 接口返回异常：' . $message);
     }
 
-    $content = is_array($data) ? ($data['choices'][0]['message']['content'] ?? '') : '';
+    $choice = is_array($data) ? ($data['choices'][0] ?? []) : [];
+    $content = is_array($choice) ? ($choice['message']['content'] ?? '') : '';
     if (!is_string($content) || trim($content) === '') {
         throw new RuntimeException($provider['label'] . ' 接口没有返回有效内容。');
+    }
+
+    $finishReason = is_array($choice) ? (string)($choice['finish_reason'] ?? '') : '';
+    if ($finishReason === 'length') {
+        $content .= "\n\n> 提醒：本次模型输出达到长度上限，后续可以减少输入内容或提高 ai_max_tokens 配置。";
     }
 
     return [

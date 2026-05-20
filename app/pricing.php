@@ -49,6 +49,26 @@ function parse_free_pattern(string $pattern, int $years): array
     return $free;
 }
 
+function sum_values(array $values): float
+{
+    return array_reduce($values, static fn(float $carry, float $value): float => $carry + $value, 0.0);
+}
+
+function contains_any(string $text, array $needles): bool
+{
+    foreach ($needles as $needle) {
+        if ($needle !== '' && str_contains($text, $needle)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function ceil_to_cents(float $value): float
+{
+    return ceil(($value - 0.000000001) * 100) / 100;
+}
+
 function rent_factor(float $area, int $years, float $escalationRate, array $freeMonths): float
 {
     $factor = 0.0;
@@ -128,6 +148,11 @@ function calculate_pricing(array $input): array
     $interestRate = num($input, 'interestRate', 5) / 100;
     $specialItems = num($input, 'specialItems');
     $targetJYears = num($input, 'targetJYears', 10);
+    $approvalJYears = num($input, 'approvalJYears', $targetJYears);
+    $openingBuffer = num($input, 'openingBuffer', 0.12);
+    $roomCode = trim((string)($input['contractRoomCode'] ?? $input['roomCode'] ?? ''));
+    $customerStage = trim((string)($input['customerStage'] ?? ''));
+    $strategyNote = trim((string)($input['pricingStrategyNote'] ?? ''));
 
     $costArea = max(1, num($input, 'costArea', $contractArea ?: $approvedArea));
     $costPremium = ($fitoutCost * (1 + $interestRate * $years) + $partitionCost) / $costArea / 365 / $years;
@@ -149,14 +174,83 @@ function calculate_pricing(array $input): array
     $targetContractRent = $approvedRent * (1 + $targetBreakRate) - $propertyDiff - $specialItems;
     $contractFactor = rent_factor($contractArea, $years, $contractEscalation, $contractFree);
     $targetContractPrice = $contractFactor == 0 ? 0 : $targetContractRent / $contractFactor;
+    $approvalBreakRate = interpolate_rate_from_y($approvalJYears);
+    $approvalContractRent = $approvedRent * (1 + $approvalBreakRate) - $propertyDiff - $specialItems;
+    $approvalContractPrice = $contractFactor == 0 ? 0 : $approvalContractRent / $contractFactor;
+    $openingPrice = max($contractPrice, $targetContractPrice + $openingBuffer);
+    $quoteGap = $contractPrice - $targetContractPrice;
+    $approvalGap = $contractPrice - $approvalContractPrice;
+    $approvedFreeTotal = sum_values($approvedFree);
+    $contractFreeTotal = sum_values($contractFree);
+    $freeMonthDiff = $contractFreeTotal - $approvedFreeTotal;
+    $monthlyRent = ceil_to_cents($contractArea * $contractPrice * 365 / 12);
+    $monthlyPropertyFee = ceil_to_cents($contractArea * $contractPropertyFee);
+    $monthlyTotal = ceil_to_cents($monthlyRent + $monthlyPropertyFee);
+    $annualRent = $monthlyRent * 12;
+    $annualPropertyFee = $monthlyPropertyFee * 12;
+    $annualTotal = $annualRent + $annualPropertyFee;
+    $riskScore = 0;
+    $riskFlags = [];
+
+    if ($breakRate < -0.30 || $jYears > $approvalJYears + 1.0) {
+        $riskScore += 3;
+        $riskFlags[] = '破底和J回正明显超出审批舒适区';
+    } elseif ($breakRate < -0.20 || $jYears > $approvalJYears) {
+        $riskScore += 2;
+        $riskFlags[] = '已进入审批敏感区，需准备让步理由';
+    } elseif ($breakRate < 0) {
+        $riskScore += 1;
+        $riskFlags[] = '轻微破底，可用成交确定性和付款条件解释';
+    }
+
+    if ($contractPrice < $targetContractPrice) {
+        $riskScore += 2;
+        $riskFlags[] = '当前合同单价低于目标J回正反推价';
+    }
+    if ($contractPrice < $approvalContractPrice) {
+        $riskScore += 2;
+        $riskFlags[] = '当前合同单价低于审批底线反推价';
+    }
+    if ($freeMonthDiff > 0) {
+        $riskScore += $freeMonthDiff >= 2 ? 2 : 1;
+        $riskFlags[] = '客户免租期高于租决口径';
+    }
+    if ($specialItems < 0) {
+        $riskScore += 1;
+        $riskFlags[] = '特殊事项减少收入，需要单独说明';
+    }
+    if ($strategyNote !== '') {
+        $riskFlags[] = '已填写业务背景，审批说明可围绕该理由组织';
+    }
+
+    if ($riskScore >= 6) {
+        $riskLevel = '高风险';
+        $riskTone = '先别直接放价，建议补成交确定性或付款条件再报。';
+    } elseif ($riskScore >= 3) {
+        $riskLevel = '需审批';
+        $riskTone = '可以推进，但要把客户条件、换取动作和底线一次讲清。';
+    } elseif ($breakRate < 0) {
+        $riskLevel = '轻审批';
+        $riskTone = '破底幅度较轻，适合用快速签约或明确让步交换条件争取通过。';
+    } else {
+        $riskLevel = '低风险';
+        $riskTone = '当前条件未破底，可优先稳住单价和免租口径。';
+    }
+
+    $quoteSpaceLabel = $quoteGap >= 0 ? '高于目标价' : '低于目标价';
+    $frontlineConclusion = $riskLevel . '，J回正约 ' . number_format($jYears, 2) . ' 年，当前单价'
+        . $quoteSpaceLabel . ' ' . number_format(abs($quoteGap), 3) . ' 元/㎡/天。';
 
     return [
         'approvedArea' => $approvedArea,
         'approvedPrice' => $approvedPrice,
         'costPremium' => $costPremium,
         'effectiveApprovedPrice' => $effectiveApprovedPrice,
+        'roomCode' => $roomCode,
+        'leaseYears' => $years,
         'contractArea' => $contractArea,
         'contractPrice' => $contractPrice,
+        'contractPropertyFee' => $contractPropertyFee,
         'approvedRent' => $approvedRent,
         'contractRent' => $contractRent,
         'approvedProperty' => $approvedProperty,
@@ -169,6 +263,28 @@ function calculate_pricing(array $input): array
         'targetJYears' => $targetJYears,
         'targetBreakRate' => $targetBreakRate,
         'targetContractPrice' => $targetContractPrice,
+        'approvalJYears' => $approvalJYears,
+        'approvalBreakRate' => $approvalBreakRate,
+        'approvalContractPrice' => $approvalContractPrice,
+        'openingPrice' => $openingPrice,
+        'openingBuffer' => $openingBuffer,
+        'quoteGap' => $quoteGap,
+        'approvalGap' => $approvalGap,
+        'approvedFreeTotal' => $approvedFreeTotal,
+        'contractFreeTotal' => $contractFreeTotal,
+        'freeMonthDiff' => $freeMonthDiff,
+        'monthlyRent' => $monthlyRent,
+        'monthlyPropertyFee' => $monthlyPropertyFee,
+        'monthlyTotal' => $monthlyTotal,
+        'annualRent' => $annualRent,
+        'annualPropertyFee' => $annualPropertyFee,
+        'annualTotal' => $annualTotal,
+        'customerStage' => $customerStage,
+        'pricingStrategyNote' => $strategyNote,
+        'riskLevel' => $riskLevel,
+        'riskScore' => $riskScore,
+        'riskTone' => $riskTone,
+        'riskFlags' => $riskFlags,
+        'frontlineConclusion' => $frontlineConclusion,
     ];
 }
-

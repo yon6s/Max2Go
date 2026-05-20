@@ -108,6 +108,10 @@ const demoScenario = {
     costArea: '88',
     specialItems: '0',
     targetJYears: '10',
+    approvalJYears: '10.5',
+    openingBuffer: '0.12',
+    customerStage: '报价后等老板确认',
+    pricingStrategyNote: '客户认可楼栋形象和采光，希望报价能给老板一个可解释的空间。',
   },
   recap: {
     customerName: '星澜智能科技有限公司',
@@ -196,6 +200,7 @@ let knowledgeMeta = null;
 let knowledgeItems = [];
 let projectItems = [];
 let latestGeneratedContent = '';
+let recapDemoTimelineReady = false;
 const contractProfileKeys = ['creditCode', 'registeredAddress', 'legalRepresentative', 'tenantPhone', 'contactPerson', 'noticeAddress'];
 const contractRequiredKeys = ['tenantName', 'creditCode', 'registeredAddress', 'legalRepresentative', 'tenantPhone'];
 const contractRequiredLabels = {
@@ -230,13 +235,12 @@ function fieldHtml(field) {
     const contractFields = [
       ['tenantName', '承租方', 'text', '例：星澜智能科技有限公司'],
       ['creditCode', '统一社会信用代码', 'text', '例：9131...'],
-      ['registeredAddress', '注册地址', 'text', '例：上海市宝山区...'],
       ['legalRepresentative', '法定代表人', 'text', '例：陈星澜'],
+      ['registeredAddress', '注册地址', 'text', '例：上海市宝山区...'],
       ['tenantPhone', '联系电话', 'text', '例：13800000000'],
       ['contactPerson', '联系人', 'text', '默认同法定代表人'],
 
       ['propertyAddress', '标的房屋地址', 'text', '例：上海市宝山区罗店路388弄33号B座706室'],
-      ['roomCode', '房号', 'text', '例：B座706室'],
       ['area', '计租面积/㎡', 'number', '例：240'],
       ['unitPrice', '租金单价/元㎡天', 'number', '例：1.6'],
       ['propertyUnitFee', '物业费单价/元㎡月', 'number', '例：12'],
@@ -252,14 +256,10 @@ function fieldHtml(field) {
       ['escalationRate', '末年递增/%', 'number', '例：5'],
       ['propertyFee', '物业费/月', 'number', '例：2880'],
       ['firstRentMonths', '首期租金/月数', 'select', ''],
-      ['firstRent', '首期租金/元', 'number', '例：35040'],
       ['depositMonths', '押金/月数', 'select', ''],
-      ['deposit', '保证金/元', 'number', '例：35040'],
       ['paymentCycle', '付款周期', 'select', ''],
-      ['firstPayDate', '首期应缴日期', 'date', ''],
-      ['depositPayDate', '保证金应缴日期', 'date', ''],
-      ['noticeAddress', '承租方通知地址', 'text', '默认同房屋地址'],
       ['taxPerSqm', '纳税承诺/元每㎡', 'number', '例：1250'],
+      ['noticeAddress', '承租方通知地址', 'text', '默认同房屋地址'],
     ];
     const selectOptions = {
       leaseMonths: [
@@ -269,11 +269,13 @@ function fieldHtml(field) {
       ],
       fitoutPattern: [
         ['0,0,0', '无装修期'],
+        ['0.5,0,0', '0.5个月'],
         ['1,0,0', '1,0,0'],
+        ['1.5,0,0', '1.5个月'],
         ['2,1,0', '2,1,0'],
+        ['2.5,0,0', '2.5个月'],
         ['2,2,1', '2,2,1'],
         ['3,0,0', '3,0,0'],
-        ['3,2,1', '3,2,1'],
         ['3,2,1', '3,2,1'],
       ],
       firstRentMonths: [
@@ -304,10 +306,10 @@ function fieldHtml(field) {
               ? `<select data-key="${key}" data-type="select">${selectOptions[key].map(([value, text]) => `<option value="${value}">${text}</option>`).join('')}</select>`
               : `<input data-key="${key}" data-type="${type}" type="${type}" step="any" placeholder="${placeholder}">`;
             const controlHtml = key === 'tenantName'
-              ? `<div class="contract-tenant-control">${control}<button id="contractQichachaBtn" class="secondary-btn" type="button">企查查查询</button><a id="contractQichachaLink" class="secondary-btn" href="https://www.qcc.com/web/search" target="_blank" rel="noopener">打开企查查网页</a></div>`
+              ? `<div class="contract-tenant-control">${control}<a id="contractQichachaLink" class="secondary-btn" href="https://www.qcc.com/web/search" target="_blank" rel="noopener">打开企查查网页</a></div>`
               : control;
             return `
-              <label class="field-block ${key === 'tenantName' ? 'wide' : ''}">
+              <label class="field-block ${key === 'tenantName' || key === 'propertyAddress' || key === 'noticeAddress' || key === 'registeredAddress' ? 'wide' : ''}">
                 <span>${label}</span>
                 ${controlHtml}
               </label>
@@ -324,6 +326,11 @@ function fieldHtml(field) {
         <input data-key="rentPeriod2Start" data-type="text" type="hidden">
         <input data-key="rentPeriod2End" data-type="text" type="hidden">
         <input data-key="monthlyRent2" data-type="text" type="hidden">
+        <input data-key="roomCode" data-type="text" type="hidden">
+        <input data-key="firstRent" data-type="text" type="hidden">
+        <input data-key="deposit" data-type="text" type="hidden">
+        <input data-key="firstPayDate" data-type="text" type="hidden">
+        <input data-key="depositPayDate" data-type="text" type="hidden">
         <div class="contract-actions">
           <button id="contractPreviewBtn" class="secondary-btn" type="button">预览关键数字</button>
           <span id="contractStatus" class="muted-text">先预览关键数字，确认无误后在右侧生成合同。</span>
@@ -361,12 +368,37 @@ function fieldHtml(field) {
             <tr><td>租金递增</td><td><input data-key="approvedEscalation" data-type="number" type="number" step="any" value="5"></td><td><input data-key="contractEscalation" data-type="number" type="number" step="any" value="0"></td><td class="muted-cell">填写百分比，如5</td></tr>
             <tr><td>免租期/月</td><td><input data-key="approvedFreePattern" data-type="text" value="1,1,1"></td><td><input data-key="contractFreePattern" data-type="text" value="2,1,0"></td><td class="muted-cell">按年填写，如2,1,0</td></tr>
             <tr><td>租期/年</td><td><input data-key="leaseYears" data-type="number" type="number" step="1" value="3"></td><td><input data-key="targetJYears" data-type="number" type="number" step="any" value="10"></td><td class="muted-cell">右侧为目标J回正年数</td></tr>
+            <tr><td>审批底线J/年</td><td><input data-key="approvalJYears" data-type="number" type="number" step="any" value="10.5"></td><td><input data-key="openingBuffer" data-type="number" type="number" step="any" value="0.12"></td><td class="muted-cell">右侧为建议开口价缓冲</td></tr>
             <tr><td>精装成本/元</td><td colspan="2"><input data-key="fitoutCost" data-type="number" type="number" step="any" value="0"></td><td>分摊进租决价格</td></tr>
             <tr><td>分户改造/元</td><td colspan="2"><input data-key="partitionCost" data-type="number" type="number" step="any" value="10000"></td><td>分摊进租决价格</td></tr>
             <tr><td>成本分摊面积/㎡</td><td colspan="2"><input data-key="costArea" data-type="number" type="number" step="any"></td><td>默认合同面积</td></tr>
             <tr><td>特殊事项/元</td><td colspan="2"><input data-key="specialItems" data-type="number" type="number" step="any" value="0"></td><td>如车位减免，减少收入填负数</td></tr>
           </tbody>
         </table>
+        <div class="pricing-context">
+          <label>
+            客户阶段
+            <select data-key="customerStage" data-type="select">
+              <option>初次报价</option>
+              <option>报价后等老板确认</option>
+              <option>二次议价</option>
+              <option>竞品比价中</option>
+              <option>准备申请政策</option>
+              <option>准备合同</option>
+            </select>
+          </label>
+          <label>
+            报价背景
+            <select data-key="pricingStrategyNote" data-type="select">
+              <option>客户认可房源，但希望价格更好向老板汇报</option>
+              <option>客户拿竞品压价，需要说明综合价值</option>
+              <option>客户愿意尽快签约，希望换取一点优惠</option>
+              <option>客户主要卡在免租期</option>
+              <option>客户主要卡在特殊事项或配套条件</option>
+              <option>仅做内部测算，暂不对外报价</option>
+            </select>
+          </label>
+        </div>
         <div class="j-table-preview">
           <strong>J回正表已调用</strong>
           <span>来自你上传的Excel：破底率 0% 至 -50%，对应 J回正约 8.26 年至 14.24 年。</span>
@@ -488,8 +520,15 @@ function renderStage() {
   fields.innerHTML = stage.fields.map(fieldHtml).join('');
   if (generateBtn) {
     generateBtn.hidden = state.stage === 'contract';
+    generateBtn.textContent = state.stage === 'pricing' ? '开始测算' : '生成AI建议';
   }
-  if (resultKicker) resultKicker.textContent = state.stage === 'contract' ? '合同输出' : 'AI输出画布';
+  if (resultKicker) {
+    resultKicker.textContent = state.stage === 'contract'
+      ? '合同输出'
+      : state.stage === 'pricing'
+        ? '本地测算'
+        : 'AI输出画布';
+  }
   if (resultTitle) {
     if (state.stage === 'contract') resultTitle.textContent = '合同文件';
     else if (state.stage === 'video') resultTitle.textContent = '短视频诊断与转化脚本';
@@ -581,11 +620,13 @@ function wireRecapChangeTracking() {
   fields.querySelectorAll('[data-key]').forEach((node) => {
     node.addEventListener('input', () => {
       latestGeneratedContent = '';
+      recapDemoTimelineReady = false;
       const saveRecapBtn = document.querySelector('#saveRecapBtn');
       if (saveRecapBtn) saveRecapBtn.hidden = true;
     });
     node.addEventListener('change', () => {
       latestGeneratedContent = '';
+      recapDemoTimelineReady = false;
       const saveRecapBtn = document.querySelector('#saveRecapBtn');
       if (saveRecapBtn) saveRecapBtn.hidden = true;
     });
@@ -747,7 +788,12 @@ function addDays(date, days) {
 
 function addMonths(date, months) {
   const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
+  const intMonths = Math.floor(months);
+  const fraction = months - intMonths;
+  next.setMonth(next.getMonth() + intMonths);
+  if (fraction > 0) {
+    next.setDate(next.getDate() + Math.round(fraction * 30));
+  }
   return next;
 }
 
@@ -763,6 +809,8 @@ function loadSelectedRoom() {
   if (!getPricingValue('contractArea')) setPricingValue('contractArea', room.area);
   if (!getPricingValue('contractPrice')) setPricingValue('contractPrice', room.price);
   if (!getPricingValue('costArea')) setPricingValue('costArea', getPricingValue('contractArea') || room.area);
+  const costAreaNode = fields.querySelector('[data-key="costArea"]');
+  if (costAreaNode && !costAreaNode.dataset.manual) costAreaNode.value = getPricingValue('contractArea') || room.area;
   updatePricingDiffs();
 }
 
@@ -785,23 +833,39 @@ function updatePricingDiffs() {
 function wirePricingSheet() {
   document.querySelector('#loadRoomBtn')?.addEventListener('click', loadSelectedRoom);
   document.querySelector('#pricingRoomSelect')?.addEventListener('change', loadSelectedRoom);
-  fields.querySelectorAll('input, select').forEach((node) => node.addEventListener('input', updatePricingDiffs));
+  fields.querySelectorAll('input, select').forEach((node) => {
+    node.addEventListener('input', () => {
+      if (node.dataset.key === 'costArea') node.dataset.manual = 'true';
+      if (node.dataset.key === 'contractArea') {
+        const costAreaNode = fields.querySelector('[data-key="costArea"]');
+        if (costAreaNode && !costAreaNode.dataset.manual) costAreaNode.value = node.value;
+      }
+      updatePricingDiffs();
+    });
+  });
   loadSelectedRoom();
 }
 
 function updateContractAutoFields(source = null) {
   const legal = getContractValue('legalRepresentative').trim();
   const contact = fields.querySelector('[data-key="contactPerson"]');
-  if (contact && source?.dataset.key === 'legalRepresentative' && (contact.dataset.autoFilled === 'true' || contact.value.trim() === '')) {
+  if (contact && (!source || source.dataset.key === 'legalRepresentative') && (contact.dataset.autoFilled === 'true' || contact.value.trim() === '')) {
     contact.value = legal;
     contact.dataset.autoFilled = 'true';
   }
 
   const propertyAddress = getContractValue('propertyAddress').trim();
   const notice = fields.querySelector('[data-key="noticeAddress"]');
-  if (notice && source?.dataset.key === 'propertyAddress' && (notice.dataset.autoFilled === 'true' || notice.value.trim() === '')) {
+  if (notice && (!source || source.dataset.key === 'propertyAddress') && (notice.dataset.autoFilled === 'true' || notice.value.trim() === '')) {
     notice.value = propertyAddress;
     notice.dataset.autoFilled = 'true';
+  }
+
+  if (!source || source.dataset.key === 'propertyAddress') {
+    let roomCode = propertyAddress;
+    const match = propertyAddress.match(/(?:号|弄|大厦|楼)([^号弄大厦楼]+)$/);
+    if (match && match[1].trim()) roomCode = match[1].trim();
+    setContractValue('roomCode', roomCode);
   }
 
   const leaseStart = dateFromInput(getContractValue('leaseStart'));
@@ -835,13 +899,13 @@ function updateContractAutoFields(source = null) {
   const firstRentMonths = Number(getContractValue('firstRentMonths') || 3);
   const depositMonths = Number(getContractValue('depositMonths') || 3);
   const escalationRate = Number(getContractValue('escalationRate') || 0);
-  const monthlyRent = Math.round(area * unitPrice * 365 / 12);
-  const monthlyRent2 = Math.round(monthlyRent * (1 + escalationRate / 100));
+  const monthlyRent = Math.ceil(area * unitPrice * 365 / 12 * 100) / 100;
+  const monthlyRent2 = Math.ceil(monthlyRent * (1 + escalationRate / 100) * 100) / 100;
   if (monthlyRent > 0) {
-    setContractValue('monthlyRent1', String(monthlyRent));
-    setContractValue('monthlyRent2', String(monthlyRent2));
-    setContractValue('firstRent', String(monthlyRent * firstRentMonths));
-    setContractValue('deposit', String(monthlyRent * depositMonths));
+    setContractValue('monthlyRent1', String(monthlyRent.toFixed(2)));
+    setContractValue('monthlyRent2', String(monthlyRent2.toFixed(2)));
+    setContractValue('firstRent', String((monthlyRent * firstRentMonths).toFixed(2)));
+    setContractValue('deposit', String((monthlyRent * depositMonths).toFixed(2)));
   }
   if (area > 0 && propertyUnitFee > 0) {
     setContractValue('propertyFee', String(Math.round(area * propertyUnitFee)));
@@ -878,7 +942,6 @@ function wireContractBuilder() {
     updateQichachaLink();
     lookupCustomerProfile();
   });
-  document.querySelector('#contractQichachaBtn')?.addEventListener('click', queryQichachaProfile);
   document.querySelector('#contractSaveProfileBtn')?.addEventListener('click', saveCustomerProfile);
   document.querySelector('#contractPreviewBtn')?.addEventListener('click', previewContractSummary);
 }
@@ -908,10 +971,13 @@ function loadDemoScenario() {
   applyStageValues(state.stage);
   resultBox.dataset.raw = '';
   latestGeneratedContent = '';
+  recapDemoTimelineReady = state.stage === 'recap';
   const saveRecapBtn = document.querySelector('#saveRecapBtn');
   if (saveRecapBtn) saveRecapBtn.hidden = true;
   resultBox.innerHTML = state.stage === 'contract'
     ? '已载入演示客户“星澜智能科技有限公司”。请核对合同字段后点击“生成合同下载”。'
+    : state.stage === 'pricing'
+      ? '已载入演示客户“星澜智能科技有限公司”的报价条件。现在可以直接点击“开始测算”。'
     : '已载入演示客户“星澜智能科技有限公司”。现在可以直接点击“生成AI建议”；切换其他流程模块后，再点一次“载入演示客户”会填入对应模块的示例信息。';
 }
 
@@ -969,6 +1035,77 @@ function timelineSummary(item) {
   `;
 }
 
+function demoRecapTimelineItems() {
+  const customerName = demoScenario.recap.customerName;
+  return [
+    {
+      createdAt: '2026-05-01T10:20:00+08:00',
+      customerName,
+      recordType: '初次咨询记录',
+      dealStage: '初次咨询',
+      outcome: '继续推进',
+      visitorRole: '行政/经办人',
+      observations: ['主动索要资料', '询问价格细节'],
+      salesSummary: '业务员判断客户预算敏感，先发基础资料和可选面积。',
+      outcomeReason: '客户初步需求为350-500㎡，6月中旬前入驻，要求先看总成本。',
+      aiExcerpt: '客户不是泛泛询价，已经给出面积和入驻时间。早期关键不是逼单，而是把可选面积、总成本和交付节奏讲清。',
+      transcriptExcerpt: '客户：我们团队大概40人，想找一个有前台形象、会议室够用的地方，6月中旬最好能进场。',
+    },
+    {
+      createdAt: '2026-05-03T15:40:00+08:00',
+      customerName,
+      recordType: '到访录音转写',
+      dealStage: '初次到访',
+      outcome: '需要二次到访',
+      visitorRole: '多人参与',
+      observations: ['拍照较多', '对园区形象认可', '关注装修期', '反复问付款方式'],
+      salesSummary: '业务员汇报客户主要嫌价格高，意向中等偏上。',
+      outcomeReason: '客户认可楼栋形象和采光，但反复确认装修交付和付款周期。',
+      aiExcerpt: '原始记录显示，价格只是表层卡点；老板形象需求、6月交付节点和财务付款周期同样影响成交。',
+      transcriptExcerpt: '客户：楼栋形象比之前看的竞品好，采光也不错。老板比较关注前台形象和会议室数量，财务会看付款周期。',
+    },
+    {
+      createdAt: '2026-05-04T19:15:00+08:00',
+      customerName,
+      recordType: '报价后反馈',
+      dealStage: '报价后跟进',
+      outcome: '等待客户内部决策',
+      visitorRole: '财务负责人',
+      observations: ['询问价格细节', '反复问付款方式', '微信回复变慢'],
+      salesSummary: '业务员判断客户在压价，需要申请一点优惠。',
+      outcomeReason: '报价后客户重点反馈首期付款压力和装修进场节点，并未直接否定项目。',
+      aiExcerpt: '这条记录提示流失风险不只是单价，而是首付款压力。如果只降单价，不调整付款解释或节奏，推进效果可能有限。',
+      transcriptExcerpt: '客户微信：价格我先给老板看一下，另外首期要付多少？装修能不能提前准备，别影响我们6月搬。',
+    },
+    {
+      createdAt: '2026-05-06T11:30:00+08:00',
+      customerName,
+      recordType: '异议处理过程',
+      dealStage: '等老板拍板',
+      outcome: '继续推进',
+      visitorRole: '老板/决策人',
+      observations: ['老板未到场', '对竞品有比较', '询问停车'],
+      salesSummary: '业务员认为客户还在拿竞品压价。',
+      outcomeReason: '老板尚未二次到访，客户拿竞品对比交付和停车便利性。',
+      aiExcerpt: '需要把二次到访约到老板本人，并把前台展示、会议室配置、停车和交付节点放在同一套方案里，而不是单独解释价格。',
+      transcriptExcerpt: '客户：老板这周不一定有空。另一个园区说交付更快，停车也方便，你们这边怎么安排？',
+    },
+    {
+      createdAt: '2026-05-08T17:50:00+08:00',
+      customerName,
+      recordType: '成交/流失复盘',
+      dealStage: '暂缓观望',
+      outcome: '暂缓',
+      visitorRole: '多人参与',
+      observations: ['微信回复变慢', '对竞品有比较'],
+      salesSummary: '业务员复盘为价格没谈下来。',
+      outcomeReason: '客户暂缓真实原因更接近“6月交付不确定 + 首期付款压力 + 老板未完成二次确认”。',
+      aiExcerpt: '可沉淀经验：此类客户不能只归因到价格，需在初访后24小时内同步交付节点和付款测算，并尽快约决策人二次到访。',
+      transcriptExcerpt: '客户微信：我们内部先缓一缓，老板还是担心进场时间，财务也觉得首期压力有点大。',
+    },
+  ];
+}
+
 async function saveRecapTimeline() {
   if (state.stage !== 'recap') return;
   const button = document.querySelector('#saveRecapBtn');
@@ -1010,11 +1147,16 @@ async function loadRecapTimeline() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '客户时间线读取失败');
     const scope = payload.inputs.customerName ? `“${escapeHtml(payload.inputs.customerName)}”` : '当前项目';
+    const items = data.items?.length ? data.items : (recapDemoTimelineReady ? demoRecapTimelineItems() : []);
+    const emptyText = recapDemoTimelineReady
+      ? ''
+      : '<p class="muted-text">暂无已保存记录。生成洞察后点击“保存到客户时间线”开始沉淀。</p>';
     resultBox.dataset.raw = '';
     latestGeneratedContent = '';
     resultBox.innerHTML = `
       <h3>客户时间线：${scope}</h3>
-      ${data.items?.length ? data.items.map(timelineSummary).join('') : '<p class="muted-text">暂无已保存记录。生成洞察后点击“保存到客户时间线”开始沉淀。</p>'}
+      ${recapDemoTimelineReady && !data.items?.length ? '<p class="demo-note">当前展示演示客户时间线，不会写入真实记录。</p>' : ''}
+      ${items.length ? items.map(timelineSummary).join('') : emptyText}
     `;
     const saveRecapBtn = document.querySelector('#saveRecapBtn');
     if (saveRecapBtn) saveRecapBtn.hidden = true;
@@ -1032,6 +1174,7 @@ function markdownToHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/^### (.*)$/gm, '<h3>$1</h3>')
     .replace(/^\*\*(.*?)\*\*$/gm, '<h4>$1</h4>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/^- (.*)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
     .replace(/\n{2,}/g, '</p><p>')
@@ -1246,17 +1389,64 @@ function closeKnowledgeModal() {
 }
 
 let currentAbortController = null;
+let generationProgressTimer = null;
+
+function renderGenerationProgress(stepIndex = 0) {
+  const steps = [
+    '整理页面输入和客户背景',
+    '匹配项目知识与业务规则',
+    '提取关键卡点和推进信号',
+    '组织可复制话术和下一步动作',
+  ];
+  const activeIndex = Math.min(stepIndex, steps.length - 1);
+  resultBox.innerHTML = `
+    <div class="ai-progress">
+      <div class="ai-progress-head">
+        <strong>正在生成建议</strong>
+        <span>通常约 10 秒</span>
+      </div>
+      <div class="ai-progress-steps">
+        ${steps.map((step, index) => `
+          <div class="ai-progress-step ${index <= activeIndex ? 'active' : ''}">
+            <span>${index + 1}</span>
+            <p>${step}</p>
+          </div>
+        `).join('')}
+      </div>
+      <p class="muted-text">这里展示的是处理进度，不展示模型内部推理。生成完成后会自动替换为正式结果。</p>
+    </div>
+  `;
+}
+
+function startGenerationProgress() {
+  let stepIndex = 0;
+  renderGenerationProgress(stepIndex);
+  clearInterval(generationProgressTimer);
+  generationProgressTimer = setInterval(() => {
+    stepIndex = Math.min(stepIndex + 1, 3);
+    renderGenerationProgress(stepIndex);
+  }, 2600);
+}
+
+function stopGenerationProgress() {
+  clearInterval(generationProgressTimer);
+  generationProgressTimer = null;
+}
 
 async function generate() {
   const button = document.querySelector('#generateBtn');
   const stopButton = document.querySelector('#stopBtn');
   const saveRecapBtn = document.querySelector('#saveRecapBtn');
   button.disabled = true;
-  button.textContent = '生成中...';
-  if (stopButton) stopButton.style.display = 'inline-block';
+  button.textContent = state.stage === 'pricing' ? '测算中...' : '生成中...';
+  if (stopButton) stopButton.style.display = state.stage === 'pricing' ? 'none' : 'inline-block';
   if (saveRecapBtn) saveRecapBtn.hidden = true;
   latestGeneratedContent = '';
-  resultBox.innerHTML = '<p>正在整理业务信息并生成建议。</p>';
+  if (state.stage === 'pricing') {
+    resultBox.innerHTML = '<p>正在按本地公式测算价格空间。</p>';
+  } else {
+    startGenerationProgress();
+  }
 
   if (currentAbortController) {
     currentAbortController.abort();
@@ -1293,8 +1483,9 @@ async function generate() {
       resultBox.textContent = error.message;
     }
   } finally {
+    stopGenerationProgress();
     button.disabled = false;
-    button.textContent = '生成AI建议';
+    button.textContent = state.stage === 'pricing' ? '开始测算' : '生成AI建议';
     if (stopButton) stopButton.style.display = 'none';
     currentAbortController = null;
   }
@@ -1304,12 +1495,33 @@ function money(value) {
   return Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 });
 }
 
+function money2(value) {
+  return Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function decimal(value, digits = 2) {
   return Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 function percent(value) {
   return `${(Number(value || 0) * 100).toFixed(2)}%`;
+}
+
+function signedMoney(value) {
+  const amount = Number(value || 0);
+  return `${amount >= 0 ? '+' : '-'}${money(Math.abs(amount))}`;
+}
+
+function signedDecimal(value, digits = 3) {
+  const amount = Number(value || 0);
+  return `${amount >= 0 ? '+' : '-'}${decimal(Math.abs(amount), digits)}`;
+}
+
+function pricingRiskClass(level) {
+  if (level === '高风险') return 'danger';
+  if (level === '需审批') return 'warning';
+  if (level === '轻审批') return 'notice';
+  return 'safe';
 }
 
 async function calculatePricing() {
@@ -1322,13 +1534,26 @@ async function calculatePricing() {
   if (!res.ok) throw new Error(data.error || '测算失败');
   const r = data.result;
   const status = r.breakRate >= 0 ? '未破底' : `破底 ${percent(r.breakRate)}`;
+  const quoteGapText = r.quoteGap >= 0
+    ? `当前比目标价高 ${decimal(r.quoteGap, 3)} 元/㎡/天`
+    : `当前比目标价低 ${decimal(Math.abs(r.quoteGap), 3)} 元/㎡/天`;
+  const approvalGapText = r.approvalGap >= 0
+    ? `距审批底线仍高 ${decimal(r.approvalGap, 3)} 元/㎡/天`
+    : `已低于审批底线 ${decimal(Math.abs(r.approvalGap), 3)} 元/㎡/天`;
+  const riskFlags = Array.isArray(r.riskFlags) && r.riskFlags.length
+    ? r.riskFlags.map((item) => `<li>${escapeHtml(item)}</li>`).join('')
+    : '<li>暂无明显审批异常。</li>';
   const raw = `价格测算结果
+一线结论：${r.frontlineConclusion}
 租决面积：${decimal(r.approvedArea)}㎡
 租决价格：${decimal(r.approvedPrice, 3)} 元/㎡/天
 成本折算溢价：${decimal(r.costPremium, 3)} 元/㎡/天
 有效租决价格：${decimal(r.effectiveApprovedPrice, 3)} 元/㎡/天
 合同面积：${decimal(r.contractArea)}㎡
 合同价格：${decimal(r.contractPrice, 3)} 元/㎡/天
+月租金：${money2(r.monthlyRent)} 元/月
+物业费：${money2(r.monthlyPropertyFee)} 元/月
+月综合成本：${money2(r.monthlyTotal)} 元/月
 租决租金总额：${money(r.approvedRent)} 元
 客户租金总额：${money(r.contractRent)} 元
 物业收入差额：${money(r.propertyDiff)} 元
@@ -1337,16 +1562,47 @@ async function calculatePricing() {
 预计J回正年数：${decimal(r.jYears)} 年
 目标J回正年数：${decimal(r.targetJYears)} 年
 目标破底率：${percent(r.targetBreakRate)}
-目标合同单价：${decimal(r.targetContractPrice, 3)} 元/㎡/天`;
+目标合同单价：${decimal(r.targetContractPrice, 3)} 元/㎡/天
+审批底线J年数：${decimal(r.approvalJYears)} 年
+审批底线单价：${decimal(r.approvalContractPrice, 3)} 元/㎡/天
+建议开口价：${decimal(r.openingPrice, 3)} 元/㎡/天
+报价空间：${quoteGapText}
+审批风险：${r.riskLevel}，${r.riskTone}`;
 
   resultBox.dataset.raw = raw;
   resultBox.innerHTML = `
-    <h3>价格测算结果：${status}</h3>
+    <div class="pricing-result-head ${pricingRiskClass(r.riskLevel)}">
+      <span>${escapeHtml(r.riskLevel)}</span>
+      <h3>${escapeHtml(r.frontlineConclusion || `价格测算结果：${status}`)}</h3>
+      <p>${escapeHtml(r.riskTone || '')}</p>
+    </div>
     <div class="calc-grid">
-      <div><span>预计J回正</span><strong>${decimal(r.jYears)} 年</strong></div>
-      <div><span>综合破底率</span><strong>${percent(r.breakRate)}</strong></div>
-      <div><span>目标合同单价</span><strong>${decimal(r.targetContractPrice, 3)}</strong></div>
-      <div><span>当前合同单价</span><strong>${decimal(r.contractPrice, 3)}</strong></div>
+      <div><span>综合破底率</span><strong>${percent(r.breakRate)}</strong><em>${status}</em></div>
+      <div><span>预计J回正</span><strong>${decimal(r.jYears)} 年</strong><em>目标 ${decimal(r.targetJYears)} 年</em></div>
+      <div><span>目标合同单价</span><strong>${decimal(r.targetContractPrice, 3)}</strong><em>${quoteGapText}</em></div>
+      <div><span>审批底线单价</span><strong>${decimal(r.approvalContractPrice, 3)}</strong><em>${approvalGapText}</em></div>
+    </div>
+    <div class="quote-space">
+      <div>
+        <span>建议开口价</span>
+        <strong>${decimal(r.openingPrice, 3)} 元/㎡/天</strong>
+        <p>用于对外先留谈判空间，缓冲 ${decimal(r.openingBuffer, 3)} 元/㎡/天。</p>
+      </div>
+      <div>
+        <span>可守目标价</span>
+        <strong>${decimal(r.targetContractPrice, 3)} 元/㎡/天</strong>
+        <p>按当前面积、免租、涨幅和物业条件，控制在 ${decimal(r.targetJYears)} 年J回正附近。</p>
+      </div>
+      <div>
+        <span>审批底线价</span>
+        <strong>${decimal(r.approvalContractPrice, 3)} 元/㎡/天</strong>
+        <p>低于该口径时，建议先补充强成交理由或换取付款条件。</p>
+      </div>
+    </div>
+    <div class="approval-box ${pricingRiskClass(r.riskLevel)}">
+      <h4>审批风险</h4>
+      <ul>${riskFlags}</ul>
+      <p>${escapeHtml(r.customerStage || '未填写客户阶段')} · ${escapeHtml(r.pricingStrategyNote || '未填写报价背景')} · 免租差额 ${signedDecimal(r.freeMonthDiff, 1)} 月</p>
     </div>
     <table class="excel-table output-table">
       <thead><tr><th>项目</th><th>租决口径</th><th>客户合同口径</th><th>差额/结果</th></tr></thead>
@@ -1354,15 +1610,57 @@ async function calculatePricing() {
         <tr><td>面积/㎡</td><td>${decimal(r.approvedArea)}</td><td>${decimal(r.contractArea)}</td><td>${decimal(r.contractArea - r.approvedArea)}</td></tr>
         <tr><td>单价/元/㎡·天</td><td>${decimal(r.approvedPrice, 3)}</td><td>${decimal(r.contractPrice, 3)}</td><td>${decimal(r.contractPrice - r.approvedPrice, 3)}</td></tr>
         <tr><td>成本折算溢价</td><td>${decimal(r.costPremium, 3)}</td><td>-</td><td>有效租决价 ${decimal(r.effectiveApprovedPrice, 3)}</td></tr>
-        <tr><td>合同周期租金总额</td><td>${money(r.approvedRent)}</td><td>${money(r.contractRent)}</td><td>${money(r.rentDiff)}</td></tr>
-        <tr><td>合同周期物业总额</td><td>${money(r.approvedProperty)}</td><td>${money(r.contractProperty)}</td><td>${money(r.propertyDiff)}</td></tr>
+        <tr><td>合同周期租金总额</td><td>${money(r.approvedRent)}</td><td>${money(r.contractRent)}</td><td>${signedMoney(r.rentDiff)}</td></tr>
+        <tr><td>合同周期物业总额</td><td>${money(r.approvedProperty)}</td><td>${money(r.contractProperty)}</td><td>${signedMoney(r.propertyDiff)}</td></tr>
         <tr><td>特殊事项</td><td>-</td><td>${money(r.specialItems)}</td><td>${money(r.specialItems)}</td></tr>
         <tr><td>综合破底率</td><td colspan="2">按Excel公式：(租金差额 + 物业差额 + 特殊事项) / 租决租金总额</td><td><strong>${percent(r.breakRate)}</strong></td></tr>
         <tr><td>J回正年数</td><td colspan="2">调用Excel右侧破底率-J回正表插值</td><td><strong>${decimal(r.jYears)} 年</strong></td></tr>
+        <tr class="summary-row"><td>客户月度费用汇总</td><td>-</td><td>月租金 ${money2(r.monthlyRent)} 元；物业费 ${money2(r.monthlyPropertyFee)} 元</td><td><strong>${money2(r.monthlyTotal)} 元/月</strong></td></tr>
       </tbody>
     </table>
-    <h4>报价空间</h4>
-    <p>若希望控制在 ${decimal(r.targetJYears)} 年J回正附近，按当前面积、免租和涨幅条件反推，合同单价约为 <strong>${decimal(r.targetContractPrice, 3)} 元/㎡/天</strong>。实际对外报价建议结合客户决策速度、付款周期、免租期和审批底线再做调整。</p>
+    <h4>一线报价提示</h4>
+    <p>确定性数字由本地公式完成。对外可先按 <strong>${decimal(r.openingPrice, 3)} 元/㎡/天</strong> 开口，谈判中尽量守住 <strong>${decimal(r.targetContractPrice, 3)} 元/㎡/天</strong>；若要低于 <strong>${decimal(r.approvalContractPrice, 3)} 元/㎡/天</strong>，建议同步说明客户决策状态、免租交换条件和特殊事项。</p>
+    <div class="customer-quote-card">
+      <div class="customer-quote-head">
+        <div>
+          <span>MAX科技园</span>
+          <h3>客户报价方案</h3>
+        </div>
+        <strong>${escapeHtml(r.roomCode || '意向房源')}</strong>
+      </div>
+      <div class="customer-quote-main">
+        <div>
+          <span>计租面积</span>
+          <strong>${decimal(r.contractArea)}㎡</strong>
+        </div>
+        <div>
+          <span>租金单价</span>
+          <strong>${decimal(r.contractPrice, 3)} 元/㎡/天</strong>
+        </div>
+        <div>
+          <span>月租金</span>
+          <strong>${money2(r.monthlyRent)} 元/月</strong>
+        </div>
+        <div>
+          <span>物业费</span>
+          <strong>${money2(r.monthlyPropertyFee)} 元/月</strong>
+          <em>${decimal(r.contractPropertyFee, 2)} 元/㎡/月</em>
+        </div>
+        <div class="quote-total">
+          <span>月综合成本</span>
+          <strong>${money2(r.monthlyTotal)} 元/月</strong>
+        </div>
+      </div>
+      <div class="customer-quote-detail">
+        <p>租期 ${decimal(r.leaseYears, 0)} 年，免租期合计约 ${decimal(r.contractFreeTotal, 1)} 个月，实际以最终合同约定为准。</p>
+        <ul>
+          <li>租金与物业费分项清晰，便于客户内部核算总成本。</li>
+          <li>按计租面积和单价直接测算，报价口径清楚，方便向老板汇报。</li>
+          <li>免租期可降低前期启动成本，适合装修和搬迁衔接。</li>
+          <li>园区形象、交付和配套一起看，综合成本优势更容易说明。</li>
+        </ul>
+      </div>
+    </div>
   `;
 }
 

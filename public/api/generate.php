@@ -18,6 +18,10 @@ if (!in_array($stage, $allowedStages, true)) {
     json_response(['error' => '未知模块，请刷新页面后重试。'], 400);
 }
 
+if (in_array($stage, ['pricing', 'contract'], true)) {
+    json_response(['error' => '该模块使用本地确定性计算，不调用大模型。'], 400);
+}
+
 $providerKey = ai_active_provider($payload);
 $providers = ai_provider_configs();
 $provider = $providers[$providerKey];

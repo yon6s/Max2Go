@@ -233,43 +233,39 @@ function contract_rent_rows(array $input): array
     $leaseMonths = max(1, (int)contract_value($input, 'leaseMonths', '36'));
     $leaseEnd = $leaseStart->modify('+' . $leaseMonths . ' months')->modify('-1 day');
     
-    $fitoutStart1 = contract_value($input, 'fitoutStart1', '');
-    $fitoutEnd1 = contract_value($input, 'fitoutEnd1', '');
-    $fitoutStart2 = contract_value($input, 'fitoutStart2', '');
-    $fitoutEnd2 = contract_value($input, 'fitoutEnd2', '');
+    $fitoutStart1 = trim((string)($input['fitoutStart1'] ?? ''));
+    $fitoutEnd1 = trim((string)($input['fitoutEnd1'] ?? ''));
+    $fitoutStart2 = trim((string)($input['fitoutStart2'] ?? ''));
+    $fitoutEnd2 = trim((string)($input['fitoutEnd2'] ?? ''));
     
     $monthlyRent1 = (float)contract_value($input, 'monthlyRent1', '11680');
     $monthlyRent2 = (float)contract_value($input, 'monthlyRent2', '12264');
     $phaseTwoStart = contract_date_object(contract_value($input, 'rentPeriod2Start', '2099-12-31'));
-    $firstMonths = max(1, min(4, (int)contract_value($input, 'firstRentMonths', '3')));
+    $firstMonths = (int)contract_value($input, 'firstRentMonths', '3');
     $paymentCycle = (int)contract_value($input, 'paymentCycle', '3');
 
     $rows = [];
-    $leaseStartYear = (int)$leaseStart->format('Y');
-    $leaseStartMonth = (int)$leaseStart->format('n');
-    $leaseStartDay = (int)$leaseStart->format('j');
-    
-    $monthIndex = 0;
+    $currentDate = $leaseStart;
     $first = true;
 
-    while ($monthIndex < $leaseMonths) {
+    while ($currentDate <= $leaseEnd) {
         $targetPaidMonths = $first ? $firstMonths : $paymentCycle;
-        $paidMonthsAccumulated = 0;
-        $amount = 0.0;
-        $periodStartIndex = $monthIndex;
         
-        while ($monthIndex < $leaseMonths && $paidMonthsAccumulated < $targetPaidMonths) {
-            $startMonthTotal = $leaseStartMonth + $monthIndex;
-            $y = $leaseStartYear + intdiv($startMonthTotal - 1, 12);
-            $m = (($startMonthTotal - 1) % 12) + 1;
-            $d = $leaseStartDay;
-            $dim = cal_days_in_month(CAL_GREGORIAN, $m, $y);
-            if ($d > $dim) $d = $dim;
-            
-            $monthStart = new DateTimeImmutable(sprintf('%04d-%02d-%02d', $y, $m, $d));
-            $midDay = $monthStart->modify('+15 days');
-            $dateStr = $midDay->format('Y-m-d');
-            
+        $d = (int)$currentDate->format('j');
+        $m = (int)$currentDate->format('n') + $targetPaidMonths;
+        $y = (int)$currentDate->format('Y') + intdiv((int)($m - 1), 12);
+        $m = ((int)($m - 1) % 12) + 1;
+        $firstDayOfMonth = new DateTimeImmutable(sprintf('%04d-%02d-01', $y, $m));
+        $dim = (int)$firstDayOfMonth->format('t');
+        if ($d > $dim) $d = $dim;
+        $baselineEnd = (new DateTimeImmutable(sprintf('%04d-%02d-%02d', $y, $m, $d)))->modify('-1 day');
+        
+        $targetPaidDays = $currentDate->diff($baselineEnd)->days + 1;
+        $actualPaidDays = 0;
+        
+        $scanDate = $currentDate;
+        while ($actualPaidDays < $targetPaidDays) {
+            $dateStr = $scanDate->format('Y-m-d');
             $isFree = false;
             if ($fitoutStart1 !== '' && $fitoutEnd1 !== '' && $dateStr >= $fitoutStart1 && $dateStr <= $fitoutEnd1) {
                 $isFree = true;
@@ -277,51 +273,55 @@ function contract_rent_rows(array $input): array
             if ($fitoutStart2 !== '' && $fitoutEnd2 !== '' && $dateStr >= $fitoutStart2 && $dateStr <= $fitoutEnd2) {
                 $isFree = true;
             }
-            
             if (!$isFree) {
-                $amount += $monthStart >= $phaseTwoStart ? $monthlyRent2 : $monthlyRent1;
-                $paidMonthsAccumulated++;
+                $actualPaidDays++;
             }
-            
-            $monthIndex++;
+            $periodEnd = $scanDate;
+            $scanDate = $scanDate->modify('+1 day');
         }
-        
-        $startTotal = $leaseStartMonth + $periodStartIndex;
-        $y1 = $leaseStartYear + intdiv($startTotal - 1, 12);
-        $m1 = (($startTotal - 1) % 12) + 1;
-        $d1 = $leaseStartDay;
-        $dim1 = cal_days_in_month(CAL_GREGORIAN, $m1, $y1);
-        if ($d1 > $dim1) $d1 = $dim1;
-        $periodStart = new DateTimeImmutable(sprintf('%04d-%02d-%02d', $y1, $m1, $d1));
-        
-        $endTotal = $leaseStartMonth + $monthIndex;
-        $y2 = $leaseStartYear + intdiv($endTotal - 1, 12);
-        $m2 = (($endTotal - 1) % 12) + 1;
-        $d2 = $leaseStartDay;
-        $dim2 = cal_days_in_month(CAL_GREGORIAN, $m2, $y2);
-        if ($d2 > $dim2) $d2 = $dim2;
-        $periodEnd = (new DateTimeImmutable(sprintf('%04d-%02d-%02d', $y2, $m2, $d2)))->modify('-1 day');
         
         if ($periodEnd > $leaseEnd) {
             $periodEnd = $leaseEnd;
+            $actualPaidDays = 0;
+            $scanDate = $currentDate;
+            while ($scanDate <= $periodEnd) {
+                $dateStr = $scanDate->format('Y-m-d');
+                $isFree = false;
+                if ($fitoutStart1 !== '' && $fitoutEnd1 !== '' && $dateStr >= $fitoutStart1 && $dateStr <= $fitoutEnd1) {
+                    $isFree = true;
+                }
+                if ($fitoutStart2 !== '' && $fitoutEnd2 !== '' && $dateStr >= $fitoutStart2 && $dateStr <= $fitoutEnd2) {
+                    $isFree = true;
+                }
+                if (!$isFree) {
+                    $actualPaidDays++;
+                }
+                $scanDate = $scanDate->modify('+1 day');
+            }
+            $amount = ($actualPaidDays / $targetPaidDays) * ($targetPaidMonths * $monthlyRent1);
+        } else {
+            $amount = $targetPaidMonths * $monthlyRent1;
         }
 
         $dueDate = $first
             ? contract_date_object(contract_value($input, 'firstPayDate', $leaseStart->modify('-10 days')->format('Y-m-d')))
-            : $periodStart->modify('-10 days');
+            : $currentDate->modify('-10 days');
             
-        $net = $amount / 1.09;
-        $tax = $amount - $net;
+        $amountRounded = ceil($amount * 100) / 100;
+        $netRounded = ceil(($amountRounded / 1.09) * 100) / 100;
+        $taxRounded = $amountRounded - $netRounded;
+
         $rows[] = [
             contract_display_date($dueDate),
-            contract_display_date($periodStart),
+            contract_display_date($currentDate),
             '～',
             contract_display_date($periodEnd),
-            number_format($amount, 2, '.', ''),
-            number_format($tax, 2, '.', ''),
-            number_format($net, 2, '.', ''),
+            number_format($amountRounded, 2, '.', ''),
+            number_format($taxRounded, 2, '.', ''),
+            number_format($netRounded, 2, '.', ''),
         ];
 
+        $currentDate = $periodEnd->modify('+1 day');
         $first = false;
     }
 
@@ -347,9 +347,15 @@ function contract_update_rent_table(string $xml, array $input): string
     }
 
     $templateRow = $rows->item(1);
+    $lastRow = $rows->item($rows->length - 1)->cloneNode(true);
+    
     for ($i = $rows->length - 1; $i >= 1; $i--) {
         $table->removeChild($rows->item($i));
     }
+
+    $totalAmount = 0.0;
+    $totalTax = 0.0;
+    $totalNet = 0.0;
 
     foreach (contract_rent_rows($input) as $rowData) {
         $row = $templateRow->cloneNode(true);
@@ -361,7 +367,19 @@ function contract_update_rent_table(string $xml, array $input): string
             }
         }
         $table->appendChild($row);
+        
+        $totalAmount += (float)$rowData[4];
+        $totalTax += (float)$rowData[5];
+        $totalNet += (float)$rowData[6];
     }
+
+    $lastCells = $xpath->query('.//w:tc', $lastRow);
+    if ($lastCells->length >= 4) {
+        contract_set_cell_text($xpath, $lastCells->item(1), number_format($totalAmount, 2, '.', ''));
+        contract_set_cell_text($xpath, $lastCells->item(2), number_format($totalTax, 2, '.', ''));
+        contract_set_cell_text($xpath, $lastCells->item(3), number_format($totalNet, 2, '.', ''));
+    }
+    $table->appendChild($lastRow);
 
     return $dom->saveXML();
 }
@@ -381,16 +399,13 @@ function generate_contract_docx(array $input): array
     $signDay = contract_value($input, 'signDay', '');
     $leaseStart = contract_cn_date(contract_value($input, 'leaseStart', '2025-12-28'), '2025年12月28日');
     $leaseEnd = contract_cn_date(contract_value($input, 'leaseEnd', '2028-12-27'), '2028年12月27日');
-    $fitoutStart1 = contract_cn_date(contract_value($input, 'fitoutStart1', '2025-12-28'), '2025年12月28日');
-    $fitoutEnd1 = contract_cn_date(contract_value($input, 'fitoutEnd1', '2026-02-27'), '2026年2月27日');
-    $fitoutStart2 = contract_cn_date(contract_value($input, 'fitoutStart2', '2026-12-28'), '2026年12月28日');
-    $fitoutEnd2 = contract_cn_date(contract_value($input, 'fitoutEnd2', '2027-01-27'), '2027年1月27日');
-    $deliveryDate = contract_cn_date(contract_value($input, 'deliveryDate', '2025-12-27'), '2025年12月27日');
-    $rentPeriod1Start = contract_cn_date(contract_value($input, 'rentPeriod1Start', '2025-12-28'), '2025年12月28日');
-    $rentPeriod1End = contract_cn_date(contract_value($input, 'rentPeriod1End', '2027-12-27'), '2027年12月27日');
-    $rentPeriod2Start = contract_cn_date(contract_value($input, 'rentPeriod2Start', '2027-12-28'), '2027年12月28日');
-    $rentPeriod2End = contract_cn_date(contract_value($input, 'rentPeriod2End', '2028-12-27'), '2028年12月27日');
+    $fitoutStart1Raw = trim((string)($input['fitoutStart1'] ?? ''));
+    $fitoutEnd1Raw = trim((string)($input['fitoutEnd1'] ?? ''));
+    $fitoutStart2Raw = trim((string)($input['fitoutStart2'] ?? ''));
+    $fitoutEnd2Raw = trim((string)($input['fitoutEnd2'] ?? ''));
 
+    $fitoutStart1 = contract_cn_date($fitoutStart1Raw, '2025年12月28日');
+    $fitoutEnd1 = contract_cn_date($fitoutEnd1Raw, '2026年2月27日');
     $monthlyRent1 = (float)contract_value($input, 'monthlyRent1', '11680');
     $monthlyRent2 = (float)contract_value($input, 'monthlyRent2', '12264');
     $firstRent = (float)contract_value($input, 'firstRent', '35040');
@@ -403,6 +418,11 @@ function generate_contract_docx(array $input): array
     $noticeAddress = contract_value($input, 'noticeAddress', $propertyAddress);
     $contactPerson = contract_value($input, 'contactPerson', contract_value($input, 'legalRepresentative', '杨应新'));
     $taxPerSqm = contract_value($input, 'taxPerSqm', '1250');
+    $deliveryDate = contract_cn_date(contract_value($input, 'deliveryDate', '2025-12-27'), '2025年12月27日');
+    $rentPeriod1Start = contract_cn_date(contract_value($input, 'rentPeriod1Start', '2025-12-28'), '2025年12月28日');
+    $rentPeriod1End = contract_cn_date(contract_value($input, 'rentPeriod1End', '2027-12-27'), '2027年12月27日');
+    $rentPeriod2Start = contract_cn_date(contract_value($input, 'rentPeriod2Start', '2027-12-28'), '2027年12月28日');
+    $rentPeriod2End = contract_cn_date(contract_value($input, 'rentPeriod2End', '2028-12-27'), '2028年12月27日');
 
     $replacements = [
         '上海雅瑄科技有限公司' => $tenantName,
@@ -419,14 +439,6 @@ function generate_contract_docx(array $input): array
         '自2025年12月28日起至2028年12月27日止' => [
             '2025年12月28日' => $leaseStart,
             '2028年12月27日' => $leaseEnd,
-        ],
-        '自2025年12月28日起至2026年2月27日' => [
-            '2025年12月28日' => $fitoutStart1,
-            '2026年2月27日' => $fitoutEnd1,
-        ],
-        '自2026年12月28日起至2027年1月27日' => [
-            '2026年12月28日' => $fitoutStart2,
-            '2027年1月27日' => $fitoutEnd2,
         ],
         '交付标的房屋' => ['2025年12月27日' => $deliveryDate],
         '自2025年12月28日起至2027年12月27日止的租金为人民币:11680元/月' => [
@@ -465,10 +477,29 @@ function generate_contract_docx(array $input): array
         ],
     ];
 
+    if ($fitoutStart1Raw === '' || $fitoutEnd1Raw === '') {
+        $replacements['自2025年12月28日起至2026年2月27日'] = '';
+    } else {
+        $replacements['自2025年12月28日起至2026年2月27日'] = [
+            '2025年12月28日' => $fitoutStart1,
+            '2026年2月27日' => $fitoutEnd1,
+        ];
+    }
+
+    if ($fitoutStart2Raw === '' || $fitoutEnd2Raw === '') {
+        $replacements['，自2026年12月28日起至2027年1月27日'] = '';
+    } else {
+        $replacements['自2026年12月28日起至2027年1月27日'] = [
+            '2026年12月28日' => contract_cn_date($fitoutStart2Raw, '2026年12月28日'),
+            '2027年1月27日' => contract_cn_date($fitoutEnd2Raw, '2027年1月27日'),
+        ];
+    }
+
     $safeName = preg_replace('/[^\\p{Han}A-Za-z0-9_-]+/u', '', $tenantName) ?: '承租方';
     $filename = 'MAX科技园租赁合同-' . $safeName . '-' . date('Ymd-His') . '.docx';
     $outputPath = CONTRACT_OUTPUT_DIR . '/' . $filename;
     copy(CONTRACT_TEMPLATE, $outputPath);
+
 
     $zip = new ZipArchive();
     if ($zip->open($outputPath) !== true) {
